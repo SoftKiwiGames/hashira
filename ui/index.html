@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+    <title>wasm</title>
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        canvas {
+            border: 1px solid black;
+        }
+    </style>
+  </head>
+
+  <body>
+    <script src="/wasm_exec.js"></script>
+
+    <script>
+      if (!WebAssembly.instantiateStreaming) {
+        WebAssembly.instantiateStreaming = async (resp, importObject) => {
+          const source = await (await resp).arrayBuffer();
+          return await WebAssembly.instantiate(source, importObject);
+        };
+      }
+
+      const go = new Go();
+      let mod, inst;
+      WebAssembly.instantiateStreaming(fetch("office.wasm"), go.importObject).then(
+        (result) => go.run(result.instance)
+      );
+    </script>
+
+    <canvas id="glcanvas" width="640" height="480"></canvas>
+  </body>
+</html>
