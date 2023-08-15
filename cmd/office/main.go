@@ -7,6 +7,7 @@ import (
 	"syscall/js"
 
 	"github.com/go-gl/mathgl/mgl32"
+	"github.com/qbart/wasm-office/internal/glu"
 	webgl "github.com/seqsense/webgl-go"
 )
 
@@ -15,11 +16,12 @@ attribute vec3 position;
 attribute vec3 color;
 varying vec3 vColor;
 
-uniform mat4 projection;
 uniform mat4 model;
+uniform mat4 view;
+uniform mat4 projection;
 
 void main(void) {
-  gl_Position = projection * model * vec4(position, 1.0);
+  gl_Position = projection * view * model * vec4(position, 1.0);
   vColor = color;
 }
 `
@@ -69,48 +71,16 @@ func linkShaders(gl *webgl.WebGL, fbVarings []string, shaders ...webgl.Shader) (
 	return program, nil
 }
 
-type Mat4 struct {
-	m mgl32.Mat4
+type Camera2D struct {
+	ViewMatrix glu.Matrix
+	Position   glu.Vertex
 }
 
-func (m Mat4) Floats() [16]float32 {
-	return [16]float32{
-		m.m[0], m.m[1], m.m[2], m.m[3],
-		m.m[4], m.m[5], m.m[6], m.m[7],
-		m.m[8], m.m[9], m.m[10], m.m[11],
-		m.m[12], m.m[13], m.m[14], m.m[15],
-	}
-}
-
-func NewVertexBuffer3f(n int) *VertexBuffer3f {
-	// n * 3 elements (x, y, z)
-	return &VertexBuffer3f{
-		data: make([]float32, n*3),
-	}
-}
-
-type VertexBuffer3f struct {
-	data []float32
-}
-
-func (v *VertexBuffer3f) Len() int {
-	return len(v.data) / 3
-}
-
-func (v *VertexBuffer3f) At(i int) (x, y, z float32) {
-	i *= 3
-	return v.data[i], v.data[i+1], v.data[i+2]
-}
-
-func (v *VertexBuffer3f) Set(i int, x, y, z float32) {
-	i *= 3
-	v.data[i] = x
-	v.data[i+1] = y
-	v.data[i+2] = z
-}
-
-func (v *VertexBuffer3f) Data() []float32 {
-	return v.data
+func (c *Camera2D) Translate(x, y float32) {
+	c.Position[0] = -x
+	c.Position[1] = -y
+	c.Position[2] = 0
+	c.ViewMatrix = glu.Matrix{mgl32.Translate3D(c.Position[0], c.Position[1], c.Position[2])}
 }
 
 type OfficeData struct {
@@ -119,37 +89,56 @@ type OfficeData struct {
 	MapHeight int `json:"mapHeight"`
 }
 
-func run() {
+type OfficeWidget struct {
+	config OfficeData
+	fps    int
+	dur    float32
+	width  int
+	height int
+	x      float32
+
+	gl            *webgl.WebGL
+	locModel      webgl.Location
+	locView       webgl.Location
+	locProjection webgl.Location
+	camera        *Camera2D
+	vertices      *glu.VertexBuffer3f
+	colors        *glu.VertexBuffer3f
+}
+
+func (o *OfficeWidget) Init() error {
 	canvas := js.Global().Get("document").Call("getElementById", "glcanvas")
 	rawData := canvas.Call("getAttribute", "data-office").String()
 
-	var officeData OfficeData
-	err := json.Unmarshal([]byte(rawData), &officeData)
+	err := json.Unmarshal([]byte(rawData), &o.config)
 	if err != nil {
-		panic(err)
+		return err
 	}
+	fmt.Println("map size:", o.config.MapWidth, "x", o.config.MapHeight)
+	fmt.Println("tile size:", o.config.TileSize, "x", o.config.TileSize)
 
 	gl, err := webgl.New(canvas)
 	if err != nil {
-		panic(err)
+		return err
 	}
-
-	width := gl.Canvas.ClientWidth()
-	height := gl.Canvas.ClientHeight()
+	o.gl = gl
+	o.width = gl.Canvas.ClientWidth()
+	o.height = gl.Canvas.ClientHeight()
 
 	// map size * 6 vertices per tile (we could share vertices between tiles but this is easier)
-	panX := float32(officeData.MapWidth) / 2
-	panY := float32(officeData.MapHeight) / 2
-	panX = 0
-	panY = 0
-	vertices := NewVertexBuffer3f(officeData.MapWidth * officeData.MapHeight * 6)
-	colors := NewVertexBuffer3f(officeData.MapWidth * officeData.MapHeight * 6)
+	n := o.config.MapWidth * o.config.MapHeight * 6
+	vertices := glu.NewVertexBuffer3f(n)
+	o.vertices = vertices
+	colors := glu.NewVertexBuffer3f(n)
+	o.colors = colors
 
-	fmt.Println("map size:", officeData.MapWidth, "x", officeData.MapHeight)
-	fmt.Println("tile size:", officeData.TileSize, "x", officeData.TileSize)
+	o.camera = &Camera2D{}
+	// move to the center of map
+	o.camera.Translate(float32(o.config.MapWidth)/2, float32(o.config.MapHeight)/2)
+
 	for i := 0; i < vertices.Len(); i += 6 {
-		x := float32(i/6%officeData.MapWidth) - panX
-		y := float32(i/6/officeData.MapWidth) - panY
+		x := float32(i / 6 % o.config.MapWidth)
+		y := float32(i / 6 / o.config.MapWidth)
 
 		// first triangle
 		//    2
@@ -160,9 +149,16 @@ func run() {
 		vertices.Set(i+1, x+1, y, 0)
 		vertices.Set(i+2, x+1, y+1, 0)
 
-		colors.Set(i+0, 1, 0, 0)
-		colors.Set(i+1, 0, 1, 0)
-		colors.Set(i+2, 0, 0, 1)
+		if i == 0 {
+			colors.Set(i+0, 1, 1, 1)
+			colors.Set(i+1, 0, 0, 0)
+			colors.Set(i+2, 1, 0, 1)
+		} else {
+
+			colors.Set(i+0, 1, 0, 0)
+			colors.Set(i+1, 0, 1, 0)
+			colors.Set(i+2, 0, 0, 1)
+		}
 
 		// second triangle
 		// 1--0
@@ -187,27 +183,35 @@ func run() {
 
 	var vs, fs webgl.Shader
 	if vs, err = initVertexShader(gl, vsSource); err != nil {
-		panic(err)
+		return err
 	}
 
 	if fs, err = initFragmentShader(gl, fsSource); err != nil {
-		panic(err)
+		return err
 	}
 
 	program, err := linkShaders(gl, nil, vs, fs)
 	if err != nil {
-		panic(err)
+		return err
 	}
 
 	gl.UseProgram(program)
-	matProjection := Mat4{mgl32.Ortho2D(0, float32(width/officeData.TileSize), float32(height/officeData.TileSize), 0)}
-	matModel := Mat4{mgl32.Ident4()}
+	// orthographic projection with origin at center
+	matProjection := glu.Matrix{mgl32.Ortho2D(
+		-float32(o.width/o.config.TileSize)/2,
+		float32(o.width/o.config.TileSize)/2,
+		-float32(o.height/o.config.TileSize)/2,
+		float32(o.height/o.config.TileSize)/2,
+	)}
+	matModel := glu.IdentityMatrix()
 
-	locProjection := gl.GetUniformLocation(program, "projection")
-	locModel := gl.GetUniformLocation(program, "model")
+	o.locModel = gl.GetUniformLocation(program, "model")
+	o.locView = gl.GetUniformLocation(program, "view")
+	o.locProjection = gl.GetUniformLocation(program, "projection")
 
-	gl.UniformMatrix4fv(locProjection, false, matProjection)
-	gl.UniformMatrix4fv(locModel, false, matModel)
+	gl.UniformMatrix4fv(o.locModel, false, matModel)
+	gl.UniformMatrix4fv(o.locView, false, o.camera.ViewMatrix)
+	gl.UniformMatrix4fv(o.locProjection, false, matProjection)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, vertexBuffer)
 	position := gl.GetAttribLocation(program, "position")
@@ -219,14 +223,32 @@ func run() {
 	gl.VertexAttribPointer(color, 3, gl.FLOAT, false, 0, 0)
 	gl.EnableVertexAttribArray(color)
 
+	return nil
+}
+
+func (o *OfficeWidget) Tick(dt float32) {
+	gl := o.gl
+
+	gl.UniformMatrix4fv(o.locView, false, o.camera.ViewMatrix)
 	gl.ClearColor(0.5, 0.5, 0.5, 0.9)
 	gl.Clear(gl.COLOR_BUFFER_BIT)
 	gl.Enable(gl.DEPTH_TEST)
-	gl.Viewport(0, 0, width, height)
-	gl.DrawArrays(gl.TRIANGLES, 0, vertices.Len())
+	gl.Viewport(0, 0, o.width, o.height)
+	gl.DrawArrays(gl.TRIANGLES, 0, o.vertices.Len())
+
+	// Debug
+
+	o.dur += dt
+	o.fps++
+	if o.dur > 1 {
+		fmt.Println("fps", o.fps)
+		o.fps = 0
+		o.dur = 0.0
+	}
 }
 
 func main() {
-	go run()
+	game := &OfficeWidget{}
+	glu.RenderLoop(game)
 	select {}
 }
