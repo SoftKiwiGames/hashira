@@ -1,30 +1,53 @@
 <!DOCTYPE html>
 <html>
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
-    <title>wasm</title>
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-        }
-        body {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        canvas {
-            border: 1px solid black;
-        }
-    </style>
-  </head>
 
-  <body>
-    <script src="/wasm_exec.js"></script>
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <title>wasm</title>
+  <style>
+    html,
+    body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
 
-    <script>
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    canvas {
+      border: 1px solid fuchsia;
+    }
+  </style>
+</head>
+
+<body>
+  <script src="/wasm_exec.js"></script>
+
+  <canvas id="glcanvas" data-wasm-url="/office.wasm" width="640" height="480" data-wasm='{
+      "tileSize": 16,
+      "mapZoom": 3,
+      "mapData": [
+        [81,97,98,99,81],
+        [82, 0, 1, 2,80],
+        [82,32,33,34,80],
+        [84,64,65,66,83],
+        [81,81,81,81,81],
+
+        [41,  6,41,41,41],
+        [41, 38,42,41,41],
+        [41, 12,58,41,41],
+        [41,108,41,41,41],
+        [41,102,41,41,41]
+      ]
+    }'></canvas>
+
+  <script>
+    (() => {
       if (!WebAssembly.instantiateStreaming) {
         WebAssembly.instantiateStreaming = async (resp, importObject) => {
           const source = await (await resp).arrayBuffer();
@@ -32,17 +55,26 @@
         };
       }
 
-      const go = new Go();
-      let mod, inst;
-      WebAssembly.instantiateStreaming(fetch("office.wasm"), go.importObject).then(
-        (result) => go.run(result.instance)
-      );
-    </script>
+      const canvases = document.getElementsByTagName("canvas");
+      for (var i = 0; i < canvases.length; i++) {
+        const canvas = canvases[i];
+        const url = canvas.getAttribute("data-wasm-url");
+        const id = canvas.getAttribute("id");
 
-    <canvas id="glcanvas" width="640" height="480" data-office='{
-      "tileSize": 32,
-      "mapWidth": 20,
-      "mapHeight": 15
-    }' ></canvas>
-  </body>
+        if (!id) {
+          canvas.setAttribute("id", "canvas-wasm-" + i);
+        }
+        let go = new Go();
+        let mod, inst;
+        WebAssembly.instantiateStreaming(fetch(url), go.importObject).then(
+          (result) => { 
+            go.run(result.instance)
+          }
+        );
+      }
+    })();
+  </script>
+
+</body>
+
 </html>
