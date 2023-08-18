@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"syscall/js"
 
@@ -101,9 +102,10 @@ func (c *Camera2D) Translate(x, y float32) {
 }
 
 type Map struct {
-	Tiles  Tiles   `json:"tiles"`
-	Zoom   float32 `json:"zoom"`
-	Layers []Layer `json:"layers"`
+	Background string  `json:"background"`
+	Tiles      Tiles   `json:"tiles"`
+	Zoom       float32 `json:"zoom"`
+	Layers     []Layer `json:"layers"`
 }
 type Tiles struct {
 	Size       uint32      `json:"size"`
@@ -118,6 +120,17 @@ type Animation struct {
 type Layer struct {
 	ID   string     `json:"id"`
 	Data [][]uint32 `json:"data"`
+}
+
+func (o *Map) BackgroundColor() [4]float32 {
+	var c color.RGBA
+	c.A = 0xff
+	_, err := fmt.Sscanf(o.Background, "#%02x%02x%02x", &c.R, &c.G, &c.B)
+	if err == nil {
+		return [4]float32{float32(c.R) / 255, float32(c.G) / 255, float32(c.B) / 255, float32(c.A) / 255}
+	}
+
+	return [4]float32{1, 0, 1, 1}
 }
 
 func (o *Map) Center() (x, y float32) {
@@ -175,6 +188,7 @@ type Widget struct {
 	layers          map[string]*Mesh
 	tilesetImage    image.Image
 	GL_DYNAMIC_DRAW webgl.BufferUsage
+	backgroundColor [4]float32
 }
 
 func (o *Widget) Init() error {
@@ -197,6 +211,7 @@ func (o *Widget) Init() error {
 	}
 	bounds := img.Bounds()
 	width, height := bounds.Max.X, bounds.Max.Y
+	o.backgroundColor = o.config.BackgroundColor()
 
 	// Get the raw pixel data
 	var pixels []byte
@@ -383,7 +398,7 @@ func (o *Widget) Tick(dt float32) {
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	gl.Viewport(0, 0, o.canvasWidth, o.canvasHeight)
-	gl.ClearColor(0.5, 0.5, 0.5, 0.9)
+	gl.ClearColor(o.backgroundColor[0], o.backgroundColor[1], o.backgroundColor[2], o.backgroundColor[3])
 	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
 
 	gl.UniformMatrix4fv(o.locView, false, o.camera.ViewMatrix)
