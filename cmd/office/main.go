@@ -338,13 +338,15 @@ func (o *OfficeWidget) Init() error {
 	)
 	gl.BindTexture(gl.TEXTURE_2D, nil)
 
-	gl.Enable(gl.DEPTH_TEST)
-
 	return nil
 }
 
 func (o *OfficeWidget) Tick(dt float32) {
 	gl := o.gl
+
+	gl.Enable(gl.DEPTH_TEST)
+	gl.Enable(gl.BLEND)
+	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	gl.Viewport(0, 0, o.canvasWidth, o.canvasHeight)
 	gl.ClearColor(0.5, 0.5, 0.5, 0.9)
