@@ -47,7 +47,7 @@ uniform sampler2D tileset;
 
 void main(void) {
   gl_FragColor = vec4(vColor, 1.);
-  gl_FragColor = texture2D(tileset, vUV);
+  gl_FragColor *= texture2D(tileset, vUV);
 }
 `
 
@@ -213,9 +213,6 @@ func (o *OfficeWidget) Init() error {
 			//  / |
 			// 0--1
 			//
-			vertices.Set(i+0, x, y, 0)
-			vertices.Set(i+1, x+1, y, 0)
-			vertices.Set(i+2, x+1, y+1, 0)
 
 			rowX := tile % tilesPerRow
 			rowY := (tile / tilesPerRow)
@@ -225,18 +222,15 @@ func (o *OfficeWidget) Init() error {
 			v := (float32(rowY*tileSize) / texH)
 			v2 := (float32((rowY+1)*tileSize) / texH)
 
+			vertices.Set(i+0, x, y, 0)
+			vertices.Set(i+1, x+1, y, 0)
+			vertices.Set(i+2, x+1, y+1, 0)
 			uvs.Set(i+0, u, v2)
 			uvs.Set(i+1, u2, v2)
 			uvs.Set(i+2, u2, v)
-			if i == 0 {
-				colors.Set(i+0, 1, 1, 1)
-				colors.Set(i+1, 0, 0, 0)
-				colors.Set(i+2, 1, 0, 1)
-			} else {
-				colors.Set(i+0, 1, 0, 0)
-				colors.Set(i+1, 0, 1, 0)
-				colors.Set(i+2, 0, 0, 1)
-			}
+			colors.Set(i+0, 1, 1, 1)
+			colors.Set(i+1, 1, 1, 1)
+			colors.Set(i+2, 1, 1, 1)
 
 			// second triangle
 			// 4--3
@@ -248,9 +242,9 @@ func (o *OfficeWidget) Init() error {
 			uvs.Set(i+3, u2, v)
 			uvs.Set(i+4, u, v)
 			uvs.Set(i+5, u, v2)
-			colors.Set(i+3, 1, 0, 0)
-			colors.Set(i+4, 0, 1, 0)
-			colors.Set(i+5, 0, 0, 1)
+			colors.Set(i+3, 1, 1, 1)
+			colors.Set(i+4, 1, 1, 1)
+			colors.Set(i+5, 1, 1, 1)
 		}
 	}
 
