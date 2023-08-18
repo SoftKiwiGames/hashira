@@ -28,9 +28,17 @@
 <body>
   <script src="/wasm_exec.js"></script>
 
-  <canvas id="glcanvas" data-wasm-url="/office.wasm" width="336" height="336" data-wasm='{
-      "tileSize": 16,
+  <canvas id="hashira-container" data-wasm-url="/office.wasm" width="336" height="336" data-wasm='{
       "zoom": 3,
+      "tiles": {
+        "size": 16,
+        "animations": [
+          {
+            "frames": [97, 98, 99],
+            "delay": 0.1
+          }
+        ]
+      },
       "layers": [
         {
           "id": "island",

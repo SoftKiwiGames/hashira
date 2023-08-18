@@ -101,9 +101,18 @@ func (c *Camera2D) Translate(x, y float32) {
 }
 
 type Map struct {
-	TileSize uint32  `json:"tileSize"`
-	Zoom     float32 `json:"zoom"`
-	Layers   []Layer `json:"layers"`
+	Tiles  Tiles   `json:"tiles"`
+	Zoom   float32 `json:"zoom"`
+	Layers []Layer `json:"layers"`
+}
+type Tiles struct {
+	Size       uint32      `json:"size"`
+	Animations []Animation `json:"animations"`
+}
+
+type Animation struct {
+	Frames []uint32 `json:"frames"`
+	Delay  float32  `json:"delay"`
 }
 
 type Layer struct {
@@ -169,7 +178,7 @@ type Widget struct {
 }
 
 func (o *Widget) Init() error {
-	canvas := js.Global().Get("document").Call("getElementById", "glcanvas")
+	canvas := js.Global().Get("document").Call("getElementById", "hashira-container")
 	if canvas.IsNull() {
 		return errors.New("canvas not found")
 	}
@@ -226,7 +235,7 @@ func (o *Widget) Init() error {
 		o.layers[layer.ID] = mesh
 	}
 
-	tileSize := uint32(o.config.TileSize)
+	tileSize := uint32(o.config.Tiles.Size)
 	texW := float32(img.Bounds().Max.X)
 	texH := float32(img.Bounds().Max.Y)
 	tilesPerRow := uint32(img.Bounds().Max.X) / tileSize
@@ -306,10 +315,10 @@ func (o *Widget) Init() error {
 	gl.UseProgram(program)
 	// orthographic projection with origin at center
 	matProjection := glu.Matrix{mgl32.Ortho(
-		-float32(uint32(o.canvasWidth)/o.config.TileSize)/(2*o.config.Zoom),
-		float32(uint32(o.canvasWidth)/o.config.TileSize)/(2*o.config.Zoom),
-		-float32(uint32(o.canvasHeight)/o.config.TileSize)/(2*o.config.Zoom),
-		float32(uint32(o.canvasHeight)/o.config.TileSize)/(2*o.config.Zoom),
+		-float32(uint32(o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
+		float32(uint32(o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
+		-float32(uint32(o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
+		float32(uint32(o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		float32(-1-len(o.config.Layers)),
 		float32(1+len(o.config.Layers)),
 	)}
