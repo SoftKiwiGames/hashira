@@ -21,10 +21,8 @@ var TileSet []byte
 
 const vsSource = `
 attribute vec3 position;
-attribute vec3 color;
 attribute vec2 uv;
 
-varying vec3 vColor;
 varying vec2 vUV;
 
 uniform mat4 model;
@@ -33,7 +31,6 @@ uniform mat4 projection;
 
 void main(void) {
   gl_Position = projection * view * model * vec4(position, 1.0);
-  vColor = color;
   vUV = uv;
 }
 `
@@ -41,14 +38,12 @@ void main(void) {
 const fsSource = `
 precision mediump float;
 
-varying vec3 vColor;
 varying vec2 vUV;
  
 uniform sampler2D tileset;
 
 void main(void) {
-  gl_FragColor = vec4(vColor, 1.);
-  gl_FragColor *= texture2D(tileset, vUV);
+  gl_FragColor = texture2D(tileset, vUV);
 }
 `
 
@@ -159,16 +154,57 @@ func (o *Map) Tile(layer int, x int, y int) uint32 {
 	return o.Layers[layer].Data[y][x]
 }
 
-type Mesh struct {
-	vertices *glu.VertexBuffer3f
-	colors   *glu.VertexBuffer3f
-	uvs      *glu.VertexBuffer2f
+type Tileset struct {
+	TileSize      uint32
+	TilesPerRow   uint32
+	TextureWidth  int
+	TextureHeight int
 }
 
-type VBO struct {
-	Vertex webgl.Buffer
-	Color  webgl.Buffer
-	UV     webgl.Buffer
+type Mesh struct {
+	VertexBuffer webgl.Buffer
+	UVBuffer     webgl.Buffer
+
+	VertexData *glu.VertexBuffer3f
+	SubMeshes  []*SubMesh
+
+	MapWidth  uint32
+	MapHeight uint32
+}
+
+type SubMesh struct {
+	ZIndex  int
+	UVs     *glu.VertexBuffer2f
+	Tileset *Tileset
+	Mesh    *Mesh
+}
+
+func (s *SubMesh) SetTileAt(x, y int, tile uint32) {
+	i := (y*int(s.Mesh.MapWidth) + x) * 6
+
+	rowX := tile % s.Tileset.TilesPerRow
+	rowY := (tile / s.Tileset.TilesPerRow)
+
+	u := float32(rowX*s.Tileset.TileSize) / float32(s.Tileset.TextureWidth)
+	u2 := float32((rowX+1)*s.Tileset.TileSize) / float32(s.Tileset.TextureWidth)
+	v := float32(rowY*s.Tileset.TileSize) / float32(s.Tileset.TextureHeight)
+	v2 := float32((rowY+1)*s.Tileset.TileSize) / float32(s.Tileset.TextureHeight)
+
+	// first triangle
+	//    2
+	//  / |
+	// 0--1
+	//
+	s.UVs.Set(i+0, u, v2)
+	s.UVs.Set(i+1, u2, v2)
+	s.UVs.Set(i+2, u2, v)
+	// second triangle
+	// 4--3
+	// | /
+	// 5
+	s.UVs.Set(i+3, u2, v)
+	s.UVs.Set(i+4, u, v)
+	s.UVs.Set(i+5, u, v2)
 }
 
 type Widget struct {
@@ -183,9 +219,8 @@ type Widget struct {
 	locProjection   webgl.Location
 	locTileset      webgl.Location
 	texTileset      webgl.Texture
-	vbo             *VBO
 	camera          *Camera2D
-	layers          map[string]*Mesh
+	mesh            *Mesh
 	tilesetImage    image.Image
 	GL_DYNAMIC_DRAW webgl.BufferUsage
 	backgroundColor [4]float32
@@ -236,82 +271,71 @@ func (o *Widget) Init() error {
 	// move to the center of map
 	o.camera.Translate(float32(o.config.MapWidth())/2, float32(o.config.MapHeight())/2)
 
-	o.layers = make(map[string]*Mesh)
-
 	// map size * 6 vertices per tile (we could share vertices between tiles but this is easier)
 	n := o.config.MapWidth() * o.config.MapHeight() * 6
 
-	for _, layer := range o.config.Layers {
-		mesh := &Mesh{
-			vertices: glu.NewVertexBuffer3f(n),
-			colors:   glu.NewVertexBuffer3f(n),
-			uvs:      glu.NewVertexBuffer2f(n),
-		}
-		o.layers[layer.ID] = mesh
+	mesh := &Mesh{
+		VertexData:   glu.NewVertexBuffer3f(n),
+		SubMeshes:    make([]*SubMesh, len(o.config.Layers)),
+		VertexBuffer: gl.CreateBuffer(),
+		UVBuffer:     gl.CreateBuffer(),
+		MapWidth:     uint32(o.config.MapWidth()),
+		MapHeight:    uint32(o.config.MapHeight()),
 	}
+	o.mesh = mesh
 
 	tileSize := uint32(o.config.Tiles.Size)
-	texW := float32(img.Bounds().Max.X)
-	texH := float32(img.Bounds().Max.Y)
-	tilesPerRow := uint32(img.Bounds().Max.X) / tileSize
-	for zIndex, layerConfig := range o.config.Layers {
-		layer := o.layers[layerConfig.ID]
-		z := float32(zIndex)
+	tileset := &Tileset{
+		TileSize:      tileSize,
+		TilesPerRow:   uint32(img.Bounds().Max.X) / tileSize,
+		TextureWidth:  img.Bounds().Max.X,
+		TextureHeight: img.Bounds().Max.Y,
+	}
 
+	for i := range o.config.Layers {
+		mesh.SubMeshes[i] = &SubMesh{
+			ZIndex:  i,
+			UVs:     glu.NewVertexBuffer2f(n),
+			Mesh:    mesh,
+			Tileset: tileset,
+		}
+	}
+
+	for my := 0; my < o.config.MapHeight(); my++ {
+		for mx := 0; mx < o.config.MapWidth(); mx++ {
+			z := float32(0)
+			i := (my*o.config.MapWidth() + mx) * 6
+			x := float32(i / 6 % o.config.MapWidth())
+			y := float32(i / 6 / o.config.MapWidth())
+
+			// first triangle
+			//    2
+			//  / |
+			// 0--1
+			//
+
+			mesh.VertexData.Set(i+0, x, y, z)
+			mesh.VertexData.Set(i+1, x+1, y, z)
+			mesh.VertexData.Set(i+2, x+1, y+1, z)
+
+			// second triangle
+			// 4--3
+			// | /
+			// 5
+			mesh.VertexData.Set(i+3, x+1, y+1, z)
+			mesh.VertexData.Set(i+4, x, y+1, z)
+			mesh.VertexData.Set(i+5, x, y, z)
+		}
+	}
+
+	for i := range o.config.Layers {
 		for my := 0; my < o.config.MapHeight(); my++ {
 			for mx := 0; mx < o.config.MapWidth(); mx++ {
-				tile := o.config.Tile(zIndex, mx, o.config.MapHeight()-my-1)
-				i := (my*o.config.MapWidth() + mx) * 6
-				x := float32(i / 6 % o.config.MapWidth())
-				y := float32(i / 6 / o.config.MapWidth())
-
-				// first triangle
-				//    2
-				//  / |
-				// 0--1
-				//
-
-				rowX := tile % tilesPerRow
-				rowY := (tile / tilesPerRow)
-
-				u := float32(rowX*tileSize) / texW
-				u2 := (float32((rowX+1)*tileSize) / texW)
-				v := (float32(rowY*tileSize) / texH)
-				v2 := (float32((rowY+1)*tileSize) / texH)
-
-				layer.vertices.Set(i+0, x, y, z)
-				layer.vertices.Set(i+1, x+1, y, z)
-				layer.vertices.Set(i+2, x+1, y+1, z)
-				layer.uvs.Set(i+0, u, v2)
-				layer.uvs.Set(i+1, u2, v2)
-				layer.uvs.Set(i+2, u2, v)
-				layer.colors.Set(i+0, 1, 1, 1)
-				layer.colors.Set(i+1, 1, 1, 1)
-				layer.colors.Set(i+2, 1, 1, 1)
-
-				// second triangle
-				// 4--3
-				// | /
-				// 5
-				layer.vertices.Set(i+3, x+1, y+1, z)
-				layer.vertices.Set(i+4, x, y+1, z)
-				layer.vertices.Set(i+5, x, y, z)
-				layer.uvs.Set(i+3, u2, v)
-				layer.uvs.Set(i+4, u, v)
-				layer.uvs.Set(i+5, u, v2)
-				layer.colors.Set(i+3, 1, 1, 1)
-				layer.colors.Set(i+4, 1, 1, 1)
-				layer.colors.Set(i+5, 1, 1, 1)
+				tile := o.config.Tile(mesh.SubMeshes[i].ZIndex, mx, o.config.MapHeight()-my-1)
+				mesh.SubMeshes[i].SetTileAt(mx, my, tile)
 			}
 		}
 	}
-
-	vbo := &VBO{
-		Vertex: gl.CreateBuffer(),
-		Color:  gl.CreateBuffer(),
-		UV:     gl.CreateBuffer(),
-	}
-	o.vbo = vbo
 
 	var vs, fs webgl.Shader
 	if vs, err = initVertexShader(gl, vsSource); err != nil {
@@ -348,20 +372,15 @@ func (o *Widget) Init() error {
 	gl.UniformMatrix4fv(o.locView, false, o.camera.ViewMatrix)
 	gl.UniformMatrix4fv(o.locProjection, false, matProjection)
 
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo.Vertex)
+	gl.EnableVertexAttribArray(0)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.VertexBuffer)
 	positionLoc := gl.GetAttribLocation(program, "position")
 	gl.VertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(positionLoc)
 
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo.Color)
-	colorLoc := gl.GetAttribLocation(program, "color")
-	gl.VertexAttribPointer(colorLoc, 3, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(colorLoc)
-
-	gl.BindBuffer(gl.ARRAY_BUFFER, vbo.UV)
+	gl.EnableVertexAttribArray(1)
+	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.UVBuffer)
 	uvLoc := gl.GetAttribLocation(program, "uv")
 	gl.VertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0)
-	gl.EnableVertexAttribArray(uvLoc)
 
 	o.texTileset = gl.CreateTexture()
 	gl.ActiveTexture(gl.TEXTURE0)
@@ -393,29 +412,24 @@ func (o *Widget) Init() error {
 func (o *Widget) Tick(dt float32) {
 	gl := o.gl
 
-	gl.Enable(gl.DEPTH_TEST)
+	gl.Disable(gl.DEPTH_TEST)
 	gl.Enable(gl.BLEND)
 	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
 
 	gl.Viewport(0, 0, o.canvasWidth, o.canvasHeight)
 	gl.ClearColor(o.backgroundColor[0], o.backgroundColor[1], o.backgroundColor[2], o.backgroundColor[3])
-	gl.Clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT)
+	gl.Clear(gl.COLOR_BUFFER_BIT)
 
 	gl.UniformMatrix4fv(o.locView, false, o.camera.ViewMatrix)
 	gl.BindTexture(gl.TEXTURE_2D, o.texTileset)
-	for _, layer := range o.config.Layers {
-		mesh := o.layers[layer.ID]
 
-		gl.BindBuffer(gl.ARRAY_BUFFER, o.vbo.Vertex)
-		gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(mesh.vertices.Data()), o.GL_DYNAMIC_DRAW)
+	gl.BindBuffer(gl.ARRAY_BUFFER, o.mesh.VertexBuffer)
+	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(o.mesh.VertexData.Data()), o.GL_DYNAMIC_DRAW)
 
-		gl.BindBuffer(gl.ARRAY_BUFFER, o.vbo.Color)
-		gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(mesh.colors.Data()), o.GL_DYNAMIC_DRAW)
-
-		gl.BindBuffer(gl.ARRAY_BUFFER, o.vbo.UV)
-		gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(mesh.uvs.Data()), o.GL_DYNAMIC_DRAW)
-
-		gl.DrawArrays(gl.TRIANGLES, 0, mesh.vertices.Len())
+	gl.BindBuffer(gl.ARRAY_BUFFER, o.mesh.UVBuffer)
+	for _, subMesh := range o.mesh.SubMeshes {
+		gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(subMesh.UVs.Data()), o.GL_DYNAMIC_DRAW)
+		gl.DrawArrays(gl.TRIANGLES, 0, o.mesh.VertexData.Len())
 	}
 	gl.BindTexture(gl.TEXTURE_2D, nil)
 }
