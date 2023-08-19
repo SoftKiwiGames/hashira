@@ -161,6 +161,34 @@ type Tileset struct {
 	TextureHeight int
 }
 
+type AnimatedTile struct {
+	*Animation
+
+	Layer      int
+	X          int
+	Y          int
+	FrameIndex int
+	Time       float32
+}
+
+func (a *AnimatedTile) Update(dt float32) bool {
+	a.Time += dt
+	if a.Time >= a.Delay {
+		a.Time = 0
+		a.FrameIndex++
+		if a.FrameIndex >= len(a.Animation.Frames) {
+			a.FrameIndex = 0
+		}
+		return true
+	}
+
+	return false
+}
+
+func (a *AnimatedTile) Tile() uint32 {
+	return a.Animation.Frames[a.FrameIndex]
+}
+
 type Mesh struct {
 	VertexBuffer webgl.Buffer
 	UVBuffer     webgl.Buffer
@@ -224,6 +252,7 @@ type Widget struct {
 	tilesetImage    image.Image
 	GL_DYNAMIC_DRAW webgl.BufferUsage
 	backgroundColor [4]float32
+	animatedTiles   []*AnimatedTile
 }
 
 func (o *Widget) Init() error {
@@ -269,7 +298,8 @@ func (o *Widget) Init() error {
 
 	o.camera = &Camera2D{}
 	// move to the center of map
-	o.camera.Translate(float32(o.config.MapWidth())/2, float32(o.config.MapHeight())/2)
+	cx, cy := o.config.Center()
+	o.camera.Translate(cx, cy)
 
 	// map size * 6 vertices per tile (we could share vertices between tiles but this is easier)
 	n := o.config.MapWidth() * o.config.MapHeight() * 6
@@ -283,6 +313,29 @@ func (o *Widget) Init() error {
 		MapHeight:    uint32(o.config.MapHeight()),
 	}
 	o.mesh = mesh
+
+	o.animatedTiles = make([]*AnimatedTile, 0)
+	for l, layer := range o.config.Layers {
+		for y, row := range layer.Data {
+			for x, tile := range row {
+				for _, animation := range o.config.Tiles.Animations {
+					if len(animation.Frames) > 1 {
+						frame := animation.Frames[0]
+						if tile == frame {
+							animation := animation
+							o.animatedTiles = append(o.animatedTiles, &AnimatedTile{
+								Animation:  &animation,
+								X:          x,
+								Y:          o.config.MapHeight() - y - 1,
+								Layer:      l,
+								FrameIndex: 0,
+							})
+						}
+					}
+				}
+			}
+		}
+	}
 
 	tileSize := uint32(o.config.Tiles.Size)
 	tileset := &Tileset{
@@ -427,6 +480,11 @@ func (o *Widget) Tick(dt float32) {
 	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(o.mesh.VertexData.Data()), o.GL_DYNAMIC_DRAW)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, o.mesh.UVBuffer)
+	for _, animatedTile := range o.animatedTiles {
+		if animatedTile.Update(dt) {
+			o.mesh.SubMeshes[animatedTile.Layer].SetTileAt(animatedTile.X, animatedTile.Y, animatedTile.Tile())
+		}
+	}
 	for _, subMesh := range o.mesh.SubMeshes {
 		gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(subMesh.UVs.Data()), o.GL_DYNAMIC_DRAW)
 		gl.DrawArrays(gl.TRIANGLES, 0, o.mesh.VertexData.Len())
