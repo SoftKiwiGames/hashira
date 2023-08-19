@@ -49,3 +49,7 @@ func (w *WebGL) TexImage2D(width int, height int, data []byte) {
 	)
 
 }
+
+func (w *WebGL) BufferData(target webgl.BufferType, data []float32, usage webgl.BufferUsage) {
+	w.gl.BufferData(target, webgl.Float32ArrayBuffer(data), usage)
+}

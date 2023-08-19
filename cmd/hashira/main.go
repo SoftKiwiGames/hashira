@@ -7,7 +7,6 @@ import (
 	"image"
 	"syscall/js"
 
-	"github.com/go-gl/mathgl/mgl32"
 	"github.com/qbart/wasm-office/internal/glu"
 	webgl "github.com/seqsense/webgl-go"
 )
@@ -86,7 +85,7 @@ func (c *Camera2D) Translate(x, y float32) {
 	c.Position[0] = -x
 	c.Position[1] = -y
 	c.Position[2] = 0
-	c.ViewMatrix = glu.Matrix{mgl32.Translate3D(c.Position[0], c.Position[1], c.Position[2])}
+	c.ViewMatrix = glu.TranslationMatrix(c.Position)
 }
 
 type Map struct {
@@ -377,12 +376,12 @@ func (o *Widget) Init() error {
 
 	gl.UseProgram(program)
 	// orthographic projection with origin at center
-	matProjection := glu.Matrix{mgl32.Ortho2D(
+	matProjection := glu.Ortho2D(
 		-float32(uint32(o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		float32(uint32(o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		-float32(uint32(o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		float32(uint32(o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
-	)}
+	)
 	matModel := glu.IdentityMatrix()
 
 	o.locModel = gl.GetUniformLocation(program, "model")
@@ -431,7 +430,7 @@ func (o *Widget) Tick(dt float32) {
 	gl.BindTexture(gl.TEXTURE_2D, o.texTileset)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, o.mesh.VertexBuffer)
-	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(o.mesh.VertexData.Data()), o.GL.DYNAMIC_DRAW)
+	o.GL.BufferData(gl.ARRAY_BUFFER, o.mesh.VertexData.Data(), o.GL.DYNAMIC_DRAW)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, o.mesh.UVBuffer)
 	for _, animatedTile := range o.animatedTiles {
@@ -440,7 +439,7 @@ func (o *Widget) Tick(dt float32) {
 		}
 	}
 	for _, subMesh := range o.mesh.SubMeshes {
-		gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(subMesh.UVs.Data()), o.GL.DYNAMIC_DRAW)
+		o.GL.BufferData(gl.ARRAY_BUFFER, subMesh.UVs.Data(), o.GL.DYNAMIC_DRAW)
 		gl.DrawArrays(gl.TRIANGLES, 0, o.mesh.VertexData.Len())
 	}
 	gl.BindTexture(gl.TEXTURE_2D, nil)
