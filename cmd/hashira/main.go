@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"image"
-	"image/color"
 	"syscall/js"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -110,17 +109,6 @@ type Animation struct {
 type Layer struct {
 	ID   string     `json:"id"`
 	Data [][]uint32 `json:"data"`
-}
-
-func (o *Map) BackgroundColor() [4]float32 {
-	var c color.RGBA
-	c.A = 0xff
-	_, err := fmt.Sscanf(o.Background, "#%02x%02x%02x", &c.R, &c.G, &c.B)
-	if err == nil {
-		return [4]float32{float32(c.R) / 255, float32(c.G) / 255, float32(c.B) / 255, float32(c.A) / 255}
-	}
-
-	return [4]float32{1, 0, 1, 1}
 }
 
 func (o *Map) Center() (x, y float32) {
@@ -235,8 +223,8 @@ type Widget struct {
 	canvasWidth  int
 	canvasHeight int
 
-	jsGL            js.Value
 	gl              *webgl.WebGL
+	GL              *glu.WebGL
 	locModel        webgl.Location
 	locView         webgl.Location
 	locProjection   webgl.Location
@@ -245,7 +233,6 @@ type Widget struct {
 	camera          *Camera2D
 	mesh            *Mesh
 	tilesetImage    image.Image
-	GL_DYNAMIC_DRAW webgl.BufferUsage
 	backgroundColor [4]float32
 	animatedTiles   []*AnimatedTile
 }
@@ -268,15 +255,15 @@ func (o *Widget) Init() error {
 	if err != nil {
 		return err
 	}
-	o.backgroundColor = o.config.BackgroundColor()
+	o.backgroundColor = glu.ParseHEXColor(o.config.Background)
 
-	gl, err := webgl.New(canvas)
+	g, err := glu.NewWebGL(canvas)
 	if err != nil {
 		return err
 	}
+	o.GL = g
+	gl := g.GL()
 	o.gl = gl
-	o.jsGL = canvas.Call("getContext", "webgl2")
-	o.GL_DYNAMIC_DRAW = webgl.BufferUsage(o.jsGL.Get("DYNAMIC_DRAW").Int())
 	o.canvasWidth = gl.Canvas.ClientWidth()
 	o.canvasHeight = gl.Canvas.ClientHeight()
 
@@ -390,13 +377,11 @@ func (o *Widget) Init() error {
 
 	gl.UseProgram(program)
 	// orthographic projection with origin at center
-	matProjection := glu.Matrix{mgl32.Ortho(
+	matProjection := glu.Matrix{mgl32.Ortho2D(
 		-float32(uint32(o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		float32(uint32(o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		-float32(uint32(o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		float32(uint32(o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
-		float32(-1-len(o.config.Layers)),
-		float32(1+len(o.config.Layers)),
 	)}
 	matModel := glu.IdentityMatrix()
 
@@ -420,27 +405,12 @@ func (o *Widget) Init() error {
 	gl.VertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0)
 
 	o.texTileset = gl.CreateTexture()
-	gl.ActiveTexture(gl.TEXTURE0)
 	gl.BindTexture(gl.TEXTURE_2D, o.texTileset)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-
-	jsPixels := js.Global().Get("Uint8ClampedArray").New(len(pixels))
-	js.CopyBytesToJS(jsPixels, img.Pixels())
-	o.jsGL.Call(
-		"texImage2D",
-		int(gl.TEXTURE_2D),
-		0, /*mipmap level*/
-		int(gl.RGBA),
-		img.Width,
-		img.Height,
-		0, /*border*/
-		int(gl.RGBA),
-		int(gl.UNSIGNED_BYTE),
-		jsPixels,
-	)
+	o.GL.TexImage2D(img.Width, img.Height, img.Pixels())
 	gl.BindTexture(gl.TEXTURE_2D, nil)
 
 	return nil
@@ -461,7 +431,7 @@ func (o *Widget) Tick(dt float32) {
 	gl.BindTexture(gl.TEXTURE_2D, o.texTileset)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, o.mesh.VertexBuffer)
-	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(o.mesh.VertexData.Data()), o.GL_DYNAMIC_DRAW)
+	gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(o.mesh.VertexData.Data()), o.GL.DYNAMIC_DRAW)
 
 	gl.BindBuffer(gl.ARRAY_BUFFER, o.mesh.UVBuffer)
 	for _, animatedTile := range o.animatedTiles {
@@ -470,7 +440,7 @@ func (o *Widget) Tick(dt float32) {
 		}
 	}
 	for _, subMesh := range o.mesh.SubMeshes {
-		gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(subMesh.UVs.Data()), o.GL_DYNAMIC_DRAW)
+		gl.BufferData(gl.ARRAY_BUFFER, webgl.Float32ArrayBuffer(subMesh.UVs.Data()), o.GL.DYNAMIC_DRAW)
 		gl.DrawArrays(gl.TRIANGLES, 0, o.mesh.VertexData.Len())
 	}
 	gl.BindTexture(gl.TEXTURE_2D, nil)

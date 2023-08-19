@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"image"
+	"image/color"
 	"image/png"
 	"io"
 	"net/http"
@@ -14,6 +15,17 @@ type Image struct {
 
 	Width  int
 	Height int
+}
+
+func ParseHEXColor(hex string) [4]float32 {
+	var c color.RGBA
+	c.A = 0xff
+	_, err := fmt.Sscanf(hex, "#%02x%02x%02x", &c.R, &c.G, &c.B)
+	if err == nil {
+		return [4]float32{float32(c.R) / 255, float32(c.G) / 255, float32(c.B) / 255, float32(c.A) / 255}
+	}
+
+	return [4]float32{1, 0, 1, 1}
 }
 
 func LoadImagePNG(url string) (*Image, error) {
@@ -46,8 +58,12 @@ func LoadImagePNG(url string) (*Image, error) {
 	}, nil
 }
 
+func (img *Image) ByteSize() int {
+	return img.Width * img.Height * 4
+}
+
 func (img *Image) Pixels() []byte {
-	pixels := make([]byte, img.Width*img.Height*4)
+	pixels := make([]byte, img.ByteSize())
 	for y := 0; y < img.Height; y++ {
 		for x := 0; x < img.Width; x++ {
 			r, g, b, a := img.Image.At(x, y).RGBA()
