@@ -1,23 +1,17 @@
 package main
 
 import (
-	"bytes"
-	_ "embed"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"image"
 	"image/color"
-	"image/png"
 	"syscall/js"
 
 	"github.com/go-gl/mathgl/mgl32"
 	"github.com/qbart/wasm-office/internal/glu"
 	webgl "github.com/seqsense/webgl-go"
 )
-
-//go:embed assets/tileset.png
-var TileSet []byte
 
 const vsSource = `
 attribute vec3 position;
@@ -103,6 +97,7 @@ type Map struct {
 	Layers     []Layer `json:"layers"`
 }
 type Tiles struct {
+	URL        string      `json:"url"`
 	Size       uint32      `json:"size"`
 	Animations []Animation `json:"animations"`
 }
@@ -269,22 +264,11 @@ func (o *Widget) Init() error {
 	if err != nil {
 		return err
 	}
-	img, err := png.Decode(bytes.NewReader(TileSet))
+	img, err := glu.LoadImagePNG(o.config.Tiles.URL)
 	if err != nil {
 		return err
 	}
-	bounds := img.Bounds()
-	width, height := bounds.Max.X, bounds.Max.Y
 	o.backgroundColor = o.config.BackgroundColor()
-
-	// Get the raw pixel data
-	var pixels []byte
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
-			r, g, b, a := img.At(x, y).RGBA()
-			pixels = append(pixels, byte(r>>8), byte(g>>8), byte(b>>8), byte(a>>8))
-		}
-	}
 
 	gl, err := webgl.New(canvas)
 	if err != nil {
@@ -340,9 +324,9 @@ func (o *Widget) Init() error {
 	tileSize := uint32(o.config.Tiles.Size)
 	tileset := &Tileset{
 		TileSize:      tileSize,
-		TilesPerRow:   uint32(img.Bounds().Max.X) / tileSize,
-		TextureWidth:  img.Bounds().Max.X,
-		TextureHeight: img.Bounds().Max.Y,
+		TilesPerRow:   uint32(img.Width) / tileSize,
+		TextureWidth:  img.Width,
+		TextureHeight: img.Height,
 	}
 
 	for i := range o.config.Layers {
@@ -444,14 +428,14 @@ func (o *Widget) Init() error {
 	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
 
 	jsPixels := js.Global().Get("Uint8ClampedArray").New(len(pixels))
-	js.CopyBytesToJS(jsPixels, pixels)
+	js.CopyBytesToJS(jsPixels, img.Pixels())
 	o.jsGL.Call(
 		"texImage2D",
 		int(gl.TEXTURE_2D),
 		0, /*mipmap level*/
 		int(gl.RGBA),
-		img.Bounds().Max.X,
-		img.Bounds().Max.Y,
+		img.Width,
+		img.Height,
 		0, /*border*/
 		int(gl.RGBA),
 		int(gl.UNSIGNED_BYTE),
