@@ -17,6 +17,7 @@
       display: flex;
       align-items: center;
       justify-content: center;
+      background-color: #0099DB;
     }
 
     canvas {
@@ -27,11 +28,13 @@
 
 <body>
   <script src="/wasm_exec.js"></script>
+  <script src="/hashira.js"></script>
 
-  <canvas id="hashira-container" data-wasm-url="/office.wasm" width="336" height="336" data-wasm='{
+  <canvas id="hashira-container" data-wasm-url="/hashira.wasm" width="336" height="336" data-wasm='{
       "background": "#0099DB",
       "zoom": 3,
       "tiles": {
+        "url": "/tiles.png",
         "size": 16,
         "animations": [
           {
@@ -77,32 +80,7 @@
     }'></canvas>
 
   <script>
-    (() => {
-      if (!WebAssembly.instantiateStreaming) {
-        WebAssembly.instantiateStreaming = async (resp, importObject) => {
-          const source = await (await resp).arrayBuffer();
-          return await WebAssembly.instantiate(source, importObject);
-        };
-      }
-
-      const canvases = document.getElementsByTagName("canvas");
-      for (var i = 0; i < canvases.length; i++) {
-        const canvas = canvases[i];
-        const url = canvas.getAttribute("data-wasm-url");
-        const id = canvas.getAttribute("id");
-
-        if (!id) {
-          canvas.setAttribute("id", "canvas-wasm-" + i);
-        }
-        let go = new Go();
-        let mod, inst;
-        WebAssembly.instantiateStreaming(fetch(url), go.importObject).then(
-          (result) => { 
-            go.run(result.instance)
-          }
-        );
-      }
-    })();
+    Hashira.Init();
   </script>
 
 </body>

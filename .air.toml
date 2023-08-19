@@ -5,7 +5,7 @@ tmp_dir = "tmp"
 [build]
   args_bin = []
   bin = "./bin/serve"
-  cmd = "GOARCH=wasm GOOS=js go build -o ./bin/office.wasm cmd/office/main.go"
+  cmd = "GOARCH=wasm GOOS=js go build -o ./bin/hashira.wasm cmd/hashira/main.go"
   delay = 0
   exclude_dir = ["bin", "assets", "tmp", "vendor", "testdata", "ui"]
   exclude_file = []
