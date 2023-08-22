@@ -7,8 +7,7 @@ import (
 	"image"
 	"syscall/js"
 
-	"github.com/qbart/wasm-office/internal/glu"
-	webgl "github.com/seqsense/webgl-go"
+	"github.com/qbart/hashira/internal/glu"
 )
 
 const vsSource = `
@@ -39,45 +38,43 @@ void main(void) {
 }
 `
 
-func initVertexShader(gl *webgl.WebGL, src string) (webgl.Shader, error) {
-	s := gl.CreateShader(gl.VERTEX_SHADER)
+func initVertexShader(gl *glu.WebGL, src string) (glu.Shader, error) {
+	s := gl.CreateShader(gl.VertexShader)
 	gl.ShaderSource(s, src)
 	gl.CompileShader(s)
-	if !gl.GetShaderParameter(s, gl.COMPILE_STATUS).(bool) {
+	if !gl.GetShaderParameter(s, gl.CompileStatus) {
 		compilationLog := gl.GetShaderInfoLog(s)
-		return webgl.Shader(js.Null()), fmt.Errorf("compile failed (VERTEX_SHADER) %v", compilationLog)
+		return glu.Shader(js.Null()), fmt.Errorf("compile failed (VERTEX_SHADER) %v", compilationLog)
 	}
 	return s, nil
 }
 
-func initFragmentShader(gl *webgl.WebGL, src string) (webgl.Shader, error) {
-	s := gl.CreateShader(gl.FRAGMENT_SHADER)
+func initFragmentShader(gl *glu.WebGL, src string) (glu.Shader, error) {
+	s := gl.CreateShader(gl.FragmentShader)
 	gl.ShaderSource(s, src)
 	gl.CompileShader(s)
-	if !gl.GetShaderParameter(s, gl.COMPILE_STATUS).(bool) {
+	if !gl.GetShaderParameter(s, gl.CompileStatus) {
 		compilationLog := gl.GetShaderInfoLog(s)
-		return webgl.Shader(js.Null()), fmt.Errorf("compile failed (FRAGMENT_SHADER) %v", compilationLog)
+		return glu.Shader(js.Null()), fmt.Errorf("compile failed (FRAGMENT_SHADER) %v", compilationLog)
 	}
 	return s, nil
 }
 
-func linkShaders(gl *webgl.WebGL, fbVarings []string, shaders ...webgl.Shader) (webgl.Program, error) {
+func linkShaders(gl *glu.WebGL, shaders ...glu.Shader) (glu.Program, error) {
 	program := gl.CreateProgram()
 	for _, s := range shaders {
 		gl.AttachShader(program, s)
 	}
-	if len(fbVarings) > 0 {
-		gl.TransformFeedbackVaryings(program, fbVarings, gl.SEPARATE_ATTRIBS)
-	}
 	gl.LinkProgram(program)
-	if !gl.GetProgramParameter(program, gl.LINK_STATUS).(bool) {
-		return webgl.Program(js.Null()), errors.New("link failed: " + gl.GetProgramInfoLog(program))
+	if !gl.GetProgramParameter(program, gl.LinkStatus) {
+		return glu.Program(js.Null()), errors.New("link failed: " + gl.GetProgramInfoLog(program))
 	}
+	// TODO delete shaders
 	return program, nil
 }
 
 type Camera2D struct {
-	ViewMatrix glu.Matrix
+	ViewMatrix glu.Matrix4
 	Position   glu.Vertex
 }
 
@@ -172,8 +169,8 @@ func (a *AnimatedTile) Tile() uint32 {
 }
 
 type Mesh struct {
-	VertexBuffer webgl.Buffer
-	UVBuffer     webgl.Buffer
+	VertexBuffer glu.Buffer
+	UVBuffer     glu.Buffer
 
 	VertexData *glu.VertexBuffer3f
 	SubMeshes  []*SubMesh
@@ -222,13 +219,14 @@ type Widget struct {
 	canvasWidth  int
 	canvasHeight int
 
-	gl              *webgl.WebGL
+	program         glu.Program
+	vao             glu.VertexArrayObject
 	GL              *glu.WebGL
-	locModel        webgl.Location
-	locView         webgl.Location
-	locProjection   webgl.Location
-	locTileset      webgl.Location
-	texTileset      webgl.Texture
+	locModel        glu.Location
+	locView         glu.Location
+	locProjection   glu.Location
+	locTileset      glu.Location
+	texTileset      glu.Texture
 	camera          *Camera2D
 	mesh            *Mesh
 	tilesetImage    image.Image
@@ -256,15 +254,12 @@ func (o *Widget) Init() error {
 	}
 	o.backgroundColor = glu.ParseHEXColor(o.config.Background)
 
-	g, err := glu.NewWebGL(canvas)
+	gl, err := glu.NewWebGL(canvas)
 	if err != nil {
 		return err
 	}
-	o.GL = g
-	gl := g.GL()
-	o.gl = gl
-	o.canvasWidth = gl.Canvas.ClientWidth()
-	o.canvasHeight = gl.Canvas.ClientHeight()
+	o.GL = gl
+	o.canvasWidth, o.canvasHeight = gl.CanvasSize()
 
 	o.camera = &Camera2D{}
 	// move to the center of map
@@ -360,7 +355,7 @@ func (o *Widget) Init() error {
 		}
 	}
 
-	var vs, fs webgl.Shader
+	var vs, fs glu.Shader
 	if vs, err = initVertexShader(gl, vsSource); err != nil {
 		return err
 	}
@@ -369,7 +364,7 @@ func (o *Widget) Init() error {
 		return err
 	}
 
-	program, err := linkShaders(gl, nil, vs, fs)
+	program, err := linkShaders(gl, vs, fs)
 	if err != nil {
 		return err
 	}
@@ -389,60 +384,70 @@ func (o *Widget) Init() error {
 	o.locProjection = gl.GetUniformLocation(program, "projection")
 	o.locTileset = gl.GetUniformLocation(program, "tileset")
 
-	gl.UniformMatrix4fv(o.locModel, false, matModel)
-	gl.UniformMatrix4fv(o.locView, false, o.camera.ViewMatrix)
-	gl.UniformMatrix4fv(o.locProjection, false, matProjection)
+	gl.UniformMatrix4(o.locModel, matModel)
+	gl.UniformMatrix4(o.locView, o.camera.ViewMatrix)
+	gl.UniformMatrix4(o.locProjection, matProjection)
 
-	gl.EnableVertexAttribArray(0)
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.VertexBuffer)
+	// VAO
+	o.vao = gl.CreateVertexArray()
+	gl.BindVertexArray(o.vao)
+
 	positionLoc := gl.GetAttribLocation(program, "position")
-	gl.VertexAttribPointer(positionLoc, 3, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(positionLoc)
+	gl.BindBuffer(gl.ArrayBuffer, mesh.VertexBuffer)
+	gl.VertexAttribPointer(positionLoc, 3, gl.Float, false, 0, 0)
 
-	gl.EnableVertexAttribArray(1)
-	gl.BindBuffer(gl.ARRAY_BUFFER, mesh.UVBuffer)
 	uvLoc := gl.GetAttribLocation(program, "uv")
-	gl.VertexAttribPointer(uvLoc, 2, gl.FLOAT, false, 0, 0)
+	gl.EnableVertexAttribArray(uvLoc)
+	gl.BindBuffer(gl.ArrayBuffer, mesh.UVBuffer)
+	gl.VertexAttribPointer(uvLoc, 2, gl.Float, false, 0, 0)
+	gl.BindVertexArray(glu.VertexArrayObject{})
+	//
 
+	// TEXTURE
 	o.texTileset = gl.CreateTexture()
-	gl.BindTexture(gl.TEXTURE_2D, o.texTileset)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST)
-	gl.TexParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST)
-	o.GL.TexImage2D(img.Width, img.Height, img.Pixels())
-	gl.BindTexture(gl.TEXTURE_2D, nil)
+	gl.BindTexture(gl.Texture2D, o.texTileset)
+	gl.TexParameteri(gl.Texture2D, gl.TextureWrapS, gl.ClampToEdge)
+	gl.TexParameteri(gl.Texture2D, gl.TextureWrapT, gl.ClampToEdge)
+	gl.TexParameteri(gl.Texture2D, gl.TextureMagFilter, gl.Nearest)
+	gl.TexParameteri(gl.Texture2D, gl.TextureMinFilter, gl.Nearest)
+	gl.TexImage2D(img.Width, img.Height, img.Pixels())
+	gl.BindTexture(gl.Texture2D, nil)
+	//
 
 	return nil
 }
 
 func (o *Widget) Tick(dt float32) {
-	gl := o.gl
+	gl := o.GL
 
-	gl.Disable(gl.DEPTH_TEST)
-	gl.Enable(gl.BLEND)
-	gl.BlendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA)
+	gl.Disable(gl.DepthTest)
+	gl.Enable(gl.Blend)
+	gl.BlendFunc(gl.SrcAlpha, gl.OneMinusSrcAlpha)
 
 	gl.Viewport(0, 0, o.canvasWidth, o.canvasHeight)
 	gl.ClearColor(o.backgroundColor[0], o.backgroundColor[1], o.backgroundColor[2], o.backgroundColor[3])
-	gl.Clear(gl.COLOR_BUFFER_BIT)
+	gl.Clear(int(gl.ColorBufferBit))
 
-	gl.UniformMatrix4fv(o.locView, false, o.camera.ViewMatrix)
-	gl.BindTexture(gl.TEXTURE_2D, o.texTileset)
+	gl.BindVertexArray(o.vao)
+	gl.UniformMatrix4(o.locView, o.camera.ViewMatrix)
+	gl.BindTexture(gl.Texture2D, o.texTileset)
 
-	gl.BindBuffer(gl.ARRAY_BUFFER, o.mesh.VertexBuffer)
-	o.GL.BufferData(gl.ARRAY_BUFFER, o.mesh.VertexData.Data(), o.GL.DYNAMIC_DRAW)
+	gl.BindBuffer(gl.ArrayBuffer, o.mesh.VertexBuffer)
+	gl.BufferData(gl.ArrayBuffer, glu.Float32ArrayBuffer(o.mesh.VertexData.Data()), gl.DynamicDraw)
 
-	gl.BindBuffer(gl.ARRAY_BUFFER, o.mesh.UVBuffer)
+	gl.BindBuffer(gl.ArrayBuffer, o.mesh.UVBuffer)
 	for _, animatedTile := range o.animatedTiles {
 		if animatedTile.Update(dt) {
 			o.mesh.SubMeshes[animatedTile.Layer].SetTileAt(animatedTile.X, animatedTile.Y, animatedTile.Tile())
 		}
 	}
 	for _, subMesh := range o.mesh.SubMeshes {
-		o.GL.BufferData(gl.ARRAY_BUFFER, subMesh.UVs.Data(), o.GL.DYNAMIC_DRAW)
-		gl.DrawArrays(gl.TRIANGLES, 0, o.mesh.VertexData.Len())
+		gl.BufferData(gl.ArrayBuffer, glu.Float32ArrayBuffer(subMesh.UVs.Data()), gl.DynamicDraw)
+		gl.DrawArrays(gl.Triangles, 0, o.mesh.VertexData.Len())
 	}
-	gl.BindTexture(gl.TEXTURE_2D, nil)
+	o.GL.BindVertexArray(glu.VertexArrayObject{})
+	gl.BindTexture(gl.Texture2D, nil)
 }
 
 func main() {

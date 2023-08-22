@@ -2,13 +2,13 @@ package glu
 
 import "syscall/js"
 
-type Game interface {
+type App interface {
 	Init() error
 	Tick(dt float32)
 }
 
-func RenderLoop(game Game) {
-	if err := game.Init(); err != nil {
+func RenderLoop(app App) {
+	if err := app.Init(); err != nil {
 		panic(err)
 	}
 
@@ -22,7 +22,7 @@ func RenderLoop(game Game) {
 			prevTotalDuration = totalDuration
 
 			// run game tick
-			game.Tick(float32(deltaTime))
+			app.Tick(float32(deltaTime))
 
 			// request next frame
 			js.Global().Call("requestAnimationFrame", js.FuncOf(callback))
