@@ -325,6 +325,7 @@ func (o *Widget) Init() error {
 	if err != nil {
 		return err
 	}
+	o.program = program
 
 	gl.UseProgram(program)
 	// orthographic projection with origin at center
