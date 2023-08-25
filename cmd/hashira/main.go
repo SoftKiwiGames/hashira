@@ -57,19 +57,19 @@ type Map struct {
 }
 type Tiles struct {
 	URL        string      `json:"url"`
-	Size       uint32      `json:"size"`
+	Size       int         `json:"size"`
 	Animations []Animation `json:"animations"`
 }
 
 type Animation struct {
-	Frames []uint32 `json:"frames"`
-	Delay  float32  `json:"delay"`
+	Frames []int   `json:"frames"`
+	Delay  float32 `json:"delay"`
 }
 
 type Layer struct {
-	ID   string     `json:"id"`
-	Data [][]uint32 `json:"data"`
-	Z    float32    `json:"z"`
+	ID   string  `json:"id"`
+	Data [][]int `json:"data"`
+	Z    float32 `json:"z"`
 }
 
 func (o *Map) Center() (x, y float32) {
@@ -94,13 +94,12 @@ func (o *Map) MapHeight() int {
 	return len(o.Layers[0].Data)
 }
 
-func (o *Map) Tile(layer int, x int, y int) uint32 {
+func (o *Map) Tile(layer int, x int, y int) int {
 	return o.Layers[layer].Data[y][x]
 }
 
 type Tileset struct {
-	TileSize      uint32
-	TilesPerRow   uint32
+	TileSize      int
 	TextureWidth  int
 	TextureHeight int
 }
@@ -129,7 +128,7 @@ func (a *AnimatedTile) Update(dt float32) bool {
 	return false
 }
 
-func (a *AnimatedTile) Tile() uint32 {
+func (a *AnimatedTile) Tile() int {
 	return a.Animation.Frames[a.FrameIndex]
 }
 
@@ -137,8 +136,8 @@ type Mesh struct {
 	VertexData *glu.VertexBuffer3f
 	SubMeshes  []*SubMesh
 
-	MapWidth  uint32
-	MapHeight uint32
+	MapWidth  int
+	MapHeight int
 }
 
 type SubMesh struct {
@@ -148,16 +147,23 @@ type SubMesh struct {
 	Mesh    *Mesh
 }
 
-func (s *SubMesh) SetTileAt(x, y int, tile uint32) {
+func TileUV(tile int, tileSize int, tilesetWidth int, tilesetHeight int) (float32, float32, float32, float32) {
+	tilesPerRow := tilesetWidth / tileSize
+	rowX := tile % tilesPerRow
+	rowY := tile / tilesPerRow
+
+	u := float32(rowX*tileSize) / float32(tilesetHeight)
+	u2 := float32((rowX+1)*tileSize) / float32(tilesetWidth)
+	v := float32(rowY*tileSize) / float32(tilesetHeight)
+	v2 := float32((rowY+1)*tileSize) / float32(tilesetHeight)
+
+	return u, v, u2, v2
+}
+
+func (s *SubMesh) SetTileAt(x, y int, tile int) {
 	i := (y*int(s.Mesh.MapWidth) + x) * 6
 
-	rowX := tile % s.Tileset.TilesPerRow
-	rowY := (tile / s.Tileset.TilesPerRow)
-
-	u := float32(rowX*s.Tileset.TileSize) / float32(s.Tileset.TextureWidth)
-	u2 := float32((rowX+1)*s.Tileset.TileSize) / float32(s.Tileset.TextureWidth)
-	v := float32(rowY*s.Tileset.TileSize) / float32(s.Tileset.TextureHeight)
-	v2 := float32((rowY+1)*s.Tileset.TileSize) / float32(s.Tileset.TextureHeight)
+	u, v, u2, v2 := TileUV(tile, s.Tileset.TileSize, s.Tileset.TextureWidth, s.Tileset.TextureHeight)
 
 	// first triangle
 	//    2
@@ -243,8 +249,8 @@ func (o *Widget) Init() error {
 	mesh := &Mesh{
 		VertexData: glu.NewVertexBuffer3f(n),
 		SubMeshes:  make([]*SubMesh, len(o.config.Layers)),
-		MapWidth:   uint32(o.config.MapWidth()),
-		MapHeight:  uint32(o.config.MapHeight()),
+		MapWidth:   o.config.MapWidth(),
+		MapHeight:  o.config.MapHeight(),
 	}
 	o.mesh = mesh
 
@@ -271,10 +277,9 @@ func (o *Widget) Init() error {
 		}
 	}
 
-	tileSize := uint32(o.config.Tiles.Size)
+	tileSize := o.config.Tiles.Size
 	tileset := &Tileset{
 		TileSize:      tileSize,
-		TilesPerRow:   uint32(img.Width) / tileSize,
 		TextureWidth:  img.Width,
 		TextureHeight: img.Height,
 	}
@@ -333,10 +338,10 @@ func (o *Widget) Init() error {
 	gl.UseProgram(program)
 	// orthographic projection with origin at center
 	o.matProjection = glu.Ortho(
-		-float32(uint32(o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
-		float32(uint32(o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
-		-float32(uint32(o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
-		float32(uint32(o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
+		-float32((o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
+		float32((o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
+		-float32((o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
+		float32((o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		-10, 10,
 	)
 	o.matModel = glu.IdentityMatrix()
