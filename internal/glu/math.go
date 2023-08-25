@@ -38,6 +38,6 @@ func (m Matrix4) JsValue() js.Value {
 	)
 }
 
-func Ortho2D(left, right, bottom, top float32) Matrix4 {
-	return Matrix4{mgl32.Ortho(left, right, bottom, top, -1, 1)}
+func Ortho(left, right, bottom, top float32, zNear, zFar float32) Matrix4 {
+	return Matrix4{mgl32.Ortho(left, right, bottom, top, zNear, zFar)}
 }

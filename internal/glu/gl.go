@@ -61,6 +61,10 @@ func (b ByteArrayBuffer) Bytes() []byte {
 	return b
 }
 
+type WebGLExtended struct {
+	*WebGL
+}
+
 type WebGL struct {
 	gl js.Value
 
@@ -155,8 +159,11 @@ func NewWebGL(canvas js.Value) (*WebGL, error) {
 	}, nil
 }
 
-// extension beyond standard WebGL
-func (w *WebGL) CreateDefaultTexture(img *Image) Texture {
+func (w *WebGL) Extended() *WebGLExtended {
+	return &WebGLExtended{w}
+}
+
+func (w *WebGLExtended) CreateDefaultTexture(img *Image) Texture {
 	texture := w.CreateTexture()
 	w.BindTexture(w.Texture2D, texture)
 	w.TexParameteri(w.Texture2D, w.TextureWrapS, w.ClampToEdge)
@@ -168,8 +175,7 @@ func (w *WebGL) CreateDefaultTexture(img *Image) Texture {
 	return texture
 }
 
-// extension beyond standard WebGL
-func (w *WebGL) CreateDefaultProgram(vertexShaderSourceCode string, fragmentShaderSourceCode string) (Program, error) {
+func (w *WebGLExtended) CreateDefaultProgram(vertexShaderSourceCode string, fragmentShaderSourceCode string) (Program, error) {
 	vertex, err := w.CreateAndCompileShader(w.VertexShader, vertexShaderSourceCode)
 	if err != nil {
 		return Program(js.Null()), fmt.Errorf("VERTEX_SHADER: %v", err)
@@ -193,12 +199,32 @@ func (w *WebGL) CreateDefaultProgram(vertexShaderSourceCode string, fragmentShad
 	return program, nil
 }
 
-// extension beyond standard WebGL
-func (w *WebGL) AssignAttribToBuffer(program Program, attrName string, buffer Buffer, typ Type, size int) {
+func (w *WebGLExtended) AssignAttribToBuffer(program Program, attrName string, buffer Buffer, typ Type, size int) {
 	attrLoc := w.GetAttribLocation(program, attrName)
 	w.EnableVertexAttribArray(attrLoc)
 	w.BindBuffer(w.ArrayBuffer, buffer)
 	w.VertexAttribPointer(attrLoc, size, typ, false, 0, 0)
+}
+
+func (w *WebGLExtended) EnableTransparency() {
+	w.Enable(w.Blend)
+	w.BlendFunc(w.SrcAlpha, w.OneMinusSrcAlpha)
+}
+
+func (w *WebGLExtended) CreateAndCompileShader(kind ShaderType, sourceCode string) (Shader, error) {
+	s := w.CreateShader(kind)
+	w.ShaderSource(s, sourceCode)
+	w.CompileShader(s)
+	if !w.GetShaderCompileStatus(s) {
+		compilationLog := w.GetShaderInfoLog(s)
+		return Shader(js.Null()), fmt.Errorf("compile failed %v", compilationLog)
+	}
+	return s, nil
+}
+
+func (w *WebGLExtended) GetShaderCompileStatus(shader Shader) bool {
+	v := w.getShaderParameter(shader, w.CompileStatus)
+	return v.Bool()
 }
 
 func (w *WebGL) CanvasSize() (width, height int) {
@@ -212,11 +238,6 @@ func (w *WebGL) Enable(capability Capability) {
 
 func (w *WebGL) Disable(capability Capability) {
 	w.gl.Call("disable", int(capability))
-}
-
-func (w *WebGL) EnableTransparency() {
-	w.Enable(w.Blend)
-	w.BlendFunc(w.SrcAlpha, w.OneMinusSrcAlpha)
 }
 
 func (w *WebGL) BlendFunc(sfactor, dfactor BlendFactor) {
@@ -288,25 +309,7 @@ func (w *WebGL) AttachShader(program Program, shader Shader) {
 	w.gl.Call("attachShader", js.Value(program), js.Value(shader))
 }
 
-// extension beyond standard WebGL
-func (w *WebGL) CreateAndCompileShader(kind ShaderType, sourceCode string) (Shader, error) {
-	s := w.CreateShader(kind)
-	w.ShaderSource(s, sourceCode)
-	w.CompileShader(s)
-	if !w.GetShaderCompileStatus(s) {
-		compilationLog := w.GetShaderInfoLog(s)
-		return Shader(js.Null()), fmt.Errorf("compile failed %v", compilationLog)
-	}
-	return s, nil
-}
-
-// extension beyond standard WebGL
-func (w *WebGL) GetShaderCompileStatus(shader Shader) bool {
-	v := w.getShaderParameter(shader, w.CompileStatus)
-	return v.Bool()
-}
-
-// standard WebGL but only inteded for private use
+// inteded for private use to avoid js.Value return
 func (w *WebGL) getShaderParameter(shader Shader, param ShaderParameter) js.Value {
 	v := w.gl.Call("getShaderParameter", js.Value(shader), int(param))
 	return v
@@ -316,7 +319,7 @@ func (w *WebGL) GetShaderInfoLog(shader Shader) string {
 	return w.gl.Call("getShaderInfoLog", js.Value(shader)).String()
 }
 
-// standard WebGL but only inteded for private use
+// inteded for private use to avoid js.Value return
 func (w *WebGL) getProgramParameter(p Program, param ProgramParameter) js.Value {
 	v := w.gl.Call("getProgramParameter", js.Value(p), int(param))
 	return v

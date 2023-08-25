@@ -186,6 +186,7 @@ type Widget struct {
 	program         glu.Program
 	vao             glu.VertexArrayObject
 	GL              *glu.WebGL
+	GLX             *glu.WebGLExtended
 	locModel        glu.Location
 	locView         glu.Location
 	locProjection   glu.Location
@@ -225,6 +226,8 @@ func (o *Widget) Init() error {
 		return err
 	}
 	o.GL = gl
+	o.GLX = gl.Extended()
+	glx := o.GLX
 	o.canvasWidth, o.canvasHeight = gl.CanvasSize()
 
 	o.camera = &Camera2D{}
@@ -321,7 +324,7 @@ func (o *Widget) Init() error {
 		}
 	}
 
-	program, err := gl.CreateDefaultProgram(vsSource, fsSource)
+	program, err := glx.CreateDefaultProgram(vsSource, fsSource)
 	if err != nil {
 		return err
 	}
@@ -329,11 +332,12 @@ func (o *Widget) Init() error {
 
 	gl.UseProgram(program)
 	// orthographic projection with origin at center
-	o.matProjection = glu.Ortho2D(
+	o.matProjection = glu.Ortho(
 		-float32(uint32(o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		float32(uint32(o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		-float32(uint32(o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		float32(uint32(o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
+		-10, 10,
 	)
 	o.matModel = glu.IdentityMatrix()
 	o.locModel = gl.GetUniformLocation(program, "model")
@@ -344,19 +348,20 @@ func (o *Widget) Init() error {
 	// VAO
 	o.vao = gl.CreateVertexArray()
 	gl.BindVertexArray(o.vao)
-	gl.AssignAttribToBuffer(program, "position", mesh.VertexBuffer, gl.Float, 3)
-	gl.AssignAttribToBuffer(program, "uv", mesh.UVBuffer, gl.Float, 2)
+	glx.AssignAttribToBuffer(program, "position", mesh.VertexBuffer, gl.Float, 3)
+	glx.AssignAttribToBuffer(program, "uv", mesh.UVBuffer, gl.Float, 2)
 
-	o.texTileset = gl.CreateDefaultTexture(img)
+	o.texTileset = glx.CreateDefaultTexture(img)
 
 	return nil
 }
 
 func (o *Widget) Tick(dt float32) {
 	gl := o.GL
+	glx := o.GLX
 
 	gl.Disable(gl.DepthTest)
-	gl.EnableTransparency()
+	glx.EnableTransparency()
 
 	gl.Viewport(0, 0, o.canvasWidth, o.canvasHeight)
 	gl.ClearColor(o.backgroundColor[0], o.backgroundColor[1], o.backgroundColor[2], o.backgroundColor[3])
