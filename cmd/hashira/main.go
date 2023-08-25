@@ -134,9 +134,6 @@ func (a *AnimatedTile) Tile() uint32 {
 }
 
 type Mesh struct {
-	VertexBuffer glu.Buffer
-	UVBuffer     glu.Buffer
-
 	VertexData *glu.VertexBuffer3f
 	SubMeshes  []*SubMesh
 
@@ -184,15 +181,19 @@ type Widget struct {
 	canvasWidth  int
 	canvasHeight int
 
-	program         glu.Program
-	vao             glu.VertexArrayObject
-	GL              *glu.WebGL
-	GLX             *glu.WebGLExtended
-	locModel        glu.Location
-	locView         glu.Location
-	locProjection   glu.Location
-	locTileset      glu.Location
-	texTileset      glu.Texture
+	program       glu.Program
+	vao           glu.VertexArrayObject
+	GL            *glu.WebGL
+	GLX           *glu.WebGLExtended
+	locModel      glu.Location
+	locView       glu.Location
+	locProjection glu.Location
+	locTileset    glu.Location
+	texTileset    glu.Texture
+
+	vertexBuffer glu.Buffer
+	uvBuffer     glu.Buffer
+
 	camera          *Camera2D
 	matModel        glu.Matrix4
 	matProjection   glu.Matrix4
@@ -240,12 +241,10 @@ func (o *Widget) Init() error {
 	n := o.config.MapWidth() * o.config.MapHeight() * 6
 
 	mesh := &Mesh{
-		VertexData:   glu.NewVertexBuffer3f(n),
-		SubMeshes:    make([]*SubMesh, len(o.config.Layers)),
-		VertexBuffer: gl.CreateBuffer(),
-		UVBuffer:     gl.CreateBuffer(),
-		MapWidth:     uint32(o.config.MapWidth()),
-		MapHeight:    uint32(o.config.MapHeight()),
+		VertexData: glu.NewVertexBuffer3f(n),
+		SubMeshes:  make([]*SubMesh, len(o.config.Layers)),
+		MapWidth:   uint32(o.config.MapWidth()),
+		MapHeight:  uint32(o.config.MapHeight()),
 	}
 	o.mesh = mesh
 
@@ -348,9 +347,11 @@ func (o *Widget) Init() error {
 
 	// VAO
 	o.vao = gl.CreateVertexArray()
+	o.vertexBuffer = gl.CreateBuffer()
+	o.uvBuffer = gl.CreateBuffer()
 	gl.BindVertexArray(o.vao)
-	glx.AssignAttribToBuffer(program, "position", mesh.VertexBuffer, gl.Float, 3)
-	glx.AssignAttribToBuffer(program, "uv", mesh.UVBuffer, gl.Float, 2)
+	glx.AssignAttribToBuffer(program, "position", o.vertexBuffer, gl.Float, 3)
+	glx.AssignAttribToBuffer(program, "uv", o.uvBuffer, gl.Float, 2)
 
 	o.texTileset = glx.CreateDefaultTexture(img)
 
@@ -377,10 +378,10 @@ func (o *Widget) Tick(dt float32) {
 
 	gl.BindVertexArray(o.vao)
 
-	gl.BindBuffer(gl.ArrayBuffer, o.mesh.VertexBuffer)
+	gl.BindBuffer(gl.ArrayBuffer, o.vertexBuffer)
 	glx.BufferDataF(gl.ArrayBuffer, o.mesh.VertexData.Data(), gl.DynamicDraw)
 
-	gl.BindBuffer(gl.ArrayBuffer, o.mesh.UVBuffer)
+	gl.BindBuffer(gl.ArrayBuffer, o.uvBuffer)
 	for _, animatedTile := range o.animatedTiles {
 		if animatedTile.Update(dt) {
 			o.mesh.SubMeshes[animatedTile.Layer].SetTileAt(animatedTile.X, animatedTile.Y, animatedTile.Tile())
