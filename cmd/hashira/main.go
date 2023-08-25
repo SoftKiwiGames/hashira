@@ -69,6 +69,7 @@ type Animation struct {
 type Layer struct {
 	ID   string     `json:"id"`
 	Data [][]uint32 `json:"data"`
+	Z    float32    `json:"z"`
 }
 
 func (o *Map) Center() (x, y float32) {
@@ -144,7 +145,7 @@ type Mesh struct {
 }
 
 type SubMesh struct {
-	ZIndex  int
+	Model   glu.Matrix4
 	UVs     *glu.VertexBuffer2f
 	Tileset *Tileset
 	Mesh    *Mesh
@@ -281,7 +282,7 @@ func (o *Widget) Init() error {
 
 	for i := range o.config.Layers {
 		mesh.SubMeshes[i] = &SubMesh{
-			ZIndex:  i,
+			Model:   glu.TranslationMatrix(glu.Vertex{0, 0, o.config.Layers[i].Z}),
 			UVs:     glu.NewVertexBuffer2f(n),
 			Mesh:    mesh,
 			Tileset: tileset,
@@ -318,7 +319,7 @@ func (o *Widget) Init() error {
 	for i := range o.config.Layers {
 		for my := 0; my < o.config.MapHeight(); my++ {
 			for mx := 0; mx < o.config.MapWidth(); mx++ {
-				tile := o.config.Tile(mesh.SubMeshes[i].ZIndex, mx, o.config.MapHeight()-my-1)
+				tile := o.config.Tile(i, mx, o.config.MapHeight()-my-1)
 				mesh.SubMeshes[i].SetTileAt(mx, my, tile)
 			}
 		}
@@ -360,24 +361,24 @@ func (o *Widget) Tick(dt float32) {
 	gl := o.GL
 	glx := o.GLX
 
-	gl.Disable(gl.DepthTest)
+	gl.Enable(gl.DepthTest)
 	glx.EnableTransparency()
 
 	gl.Viewport(0, 0, o.canvasWidth, o.canvasHeight)
 	gl.ClearColor(o.backgroundColor[0], o.backgroundColor[1], o.backgroundColor[2], o.backgroundColor[3])
-	gl.Clear(gl.ColorBufferBit)
+	gl.Clear(gl.ColorBufferBit | gl.DepthBufferBit)
 
 	gl.UseProgram(o.program)
 	gl.UniformMatrix4(o.locModel, o.matModel)
 	gl.UniformMatrix4(o.locView, o.camera.ViewMatrix)
 	gl.UniformMatrix4(o.locProjection, o.matProjection)
 
-	gl.BindTexture(gl.Texture2D, o.texTileset)
+	glx.BindTexture2D(o.texTileset)
 
 	gl.BindVertexArray(o.vao)
 
 	gl.BindBuffer(gl.ArrayBuffer, o.mesh.VertexBuffer)
-	gl.BufferData(gl.ArrayBuffer, glu.Float32ArrayBuffer(o.mesh.VertexData.Data()), gl.DynamicDraw)
+	glx.BufferDataF(gl.ArrayBuffer, o.mesh.VertexData.Data(), gl.DynamicDraw)
 
 	gl.BindBuffer(gl.ArrayBuffer, o.mesh.UVBuffer)
 	for _, animatedTile := range o.animatedTiles {
@@ -387,11 +388,11 @@ func (o *Widget) Tick(dt float32) {
 	}
 
 	for _, subMesh := range o.mesh.SubMeshes {
-		gl.BufferData(gl.ArrayBuffer, glu.Float32ArrayBuffer(subMesh.UVs.Data()), gl.DynamicDraw)
-		gl.DrawArrays(gl.Triangles, 0, o.mesh.VertexData.Len())
+		gl.UniformMatrix4(o.locModel, subMesh.Model)
+		glx.BufferDataF(gl.ArrayBuffer, subMesh.UVs.Data(), gl.DynamicDraw)
+		glx.DrawTriangles(0, o.mesh.VertexData.Len())
 	}
-	gl.BindVertexArray(glu.VertexArrayObject{})
-	gl.BindTexture(gl.Texture2D, nil)
+	glx.UnbindAll()
 }
 
 func main() {

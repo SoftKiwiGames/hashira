@@ -211,6 +211,23 @@ func (w *WebGLExtended) EnableTransparency() {
 	w.BlendFunc(w.SrcAlpha, w.OneMinusSrcAlpha)
 }
 
+func (w *WebGLExtended) BufferDataF(target BufferType, data []float32, usage BufferUsage) {
+	w.BufferData(target, Float32ArrayBuffer(data), usage)
+}
+
+func (w *WebGLExtended) DrawTriangles(offset int, count int) {
+	w.DrawArrays(w.Triangles, offset, count)
+}
+
+func (w *WebGLExtended) UnbindAll() {
+	w.BindVertexArray(VertexArrayObject{})
+	w.BindTexture(w.Texture2D, nil)
+}
+
+func (w *WebGLExtended) BindTexture2D(texture Texture) {
+	w.BindTexture(w.Texture2D, texture)
+}
+
 func (w *WebGLExtended) CreateAndCompileShader(kind ShaderType, sourceCode string) (Shader, error) {
 	s := w.CreateShader(kind)
 	w.ShaderSource(s, sourceCode)
