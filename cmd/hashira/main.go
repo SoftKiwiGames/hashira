@@ -379,6 +379,7 @@ func (o *Widget) Tick(dt float32) {
 	gl.UniformMatrix4(o.locView, o.camera.ViewMatrix)
 	gl.UniformMatrix4(o.locProjection, o.matProjection)
 
+	glx.ActiveTexture(gl.Texture0)
 	glx.BindTexture2D(o.texTileset)
 
 	gl.BindVertexArray(o.vao)

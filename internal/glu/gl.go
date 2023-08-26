@@ -15,10 +15,27 @@ import (
 	"unsafe"
 )
 
+type GLenum uint32
+type GLboolean bool
+type GLbitfield uint32
+type GLbyte int8
+type GLshort int16
+type GLint int32
+type GLsizei int32
+type GLintptr int64
+type GLsizeiptr int64
+type GLubyte uint8
+type GLushort uint16
+type GLuint uint32
+type GLfloat float32
+type GLclampf float32
+type GLint64 int64
+
 type DrawMode int
 type TextureType int
 type TextureParameterName int
 type TextureParameter int
+type TextureUnit int
 type Texture *js.Value
 type BufferData interface {
 	Bytes() []byte
@@ -39,6 +56,7 @@ type Program js.Value
 type Shader js.Value
 type ShaderParameter int
 type ProgramParameter int
+type Parameter int
 
 type Float32ArrayBuffer []float32
 
@@ -52,6 +70,16 @@ func (f Float32ArrayBuffer) Bytes() []byte {
 	sh.Len = n
 	sh.Cap = n
 
+	// buffer := new(bytes.Buffer)
+	// for _, x := range f {
+	// 	err := binary.Write(buffer, binary.LittleEndian, x)
+	// 	if err != nil {
+	// 		fmt.Println("Error:", err)
+	// 		return nil
+	// 	}
+	// }
+
+	// return buffer.Bytes()
 	return buf
 }
 
@@ -97,6 +125,7 @@ type WebGL struct {
 
 	Triangles DrawMode
 
+	Texture0         TextureUnit
 	TextureMinFilter TextureParameterName
 	TextureMagFilter TextureParameterName
 	TextureWrapS     TextureParameterName
@@ -107,6 +136,16 @@ type WebGL struct {
 	CompileStatus  ShaderParameter
 	LinkStatus     ProgramParameter
 	ValidateStatus ProgramParameter
+
+	MaxCombinedTextureImageUnits Parameter
+	MaxTextureImageUnits         Parameter
+	MaxVertexTextureImageUnits   Parameter
+	MaxTextureSize               Parameter
+	MaxRenderbufferSize          Parameter
+	MaxVertexAttribs             Parameter
+	MaxVaryingVectors            Parameter
+	MaxVertexUniformVectors      Parameter
+	MaxFragmentUniformVectors    Parameter
 }
 
 func NewWebGL(canvas js.Value) (*WebGL, error) {
@@ -146,6 +185,7 @@ func NewWebGL(canvas js.Value) (*WebGL, error) {
 
 		Triangles: DrawMode(gl.Get("TRIANGLES").Int()),
 
+		Texture0:         TextureUnit(gl.Get("TEXTURE0").Int()),
 		TextureMinFilter: TextureParameterName(gl.Get("TEXTURE_MIN_FILTER").Int()),
 		TextureMagFilter: TextureParameterName(gl.Get("TEXTURE_MAG_FILTER").Int()),
 		TextureWrapS:     TextureParameterName(gl.Get("TEXTURE_WRAP_S").Int()),
@@ -156,6 +196,16 @@ func NewWebGL(canvas js.Value) (*WebGL, error) {
 		CompileStatus:  ShaderParameter(gl.Get("COMPILE_STATUS").Int()),
 		LinkStatus:     ProgramParameter(gl.Get("LINK_STATUS").Int()),
 		ValidateStatus: ProgramParameter(gl.Get("VALIDATE_STATUS").Int()),
+
+		MaxCombinedTextureImageUnits: Parameter(gl.Get("MAX_COMBINED_TEXTURE_IMAGE_UNITS").Int()),
+		MaxTextureImageUnits:         Parameter(gl.Get("MAX_TEXTURE_IMAGE_UNITS").Int()),
+		MaxVertexTextureImageUnits:   Parameter(gl.Get("MAX_VERTEX_TEXTURE_IMAGE_UNITS").Int()),
+		MaxTextureSize:               Parameter(gl.Get("MAX_TEXTURE_SIZE").Int()),
+		MaxRenderbufferSize:          Parameter(gl.Get("MAX_RENDERBUFFER_SIZE").Int()),
+		MaxVertexAttribs:             Parameter(gl.Get("MAX_VERTEX_ATTRIBS").Int()),
+		MaxVaryingVectors:            Parameter(gl.Get("MAX_VARYING_VECTORS").Int()),
+		MaxVertexUniformVectors:      Parameter(gl.Get("MAX_VERTEX_UNIFORM_VECTORS").Int()),
+		MaxFragmentUniformVectors:    Parameter(gl.Get("MAX_FRAGMENT_UNIFORM_VECTORS").Int()),
 	}, nil
 }
 
@@ -193,7 +243,14 @@ func (w *WebGLExtended) CreateDefaultProgram(vertexShaderSourceCode string, frag
 	if !w.getProgramParameter(program, w.LinkStatus).Bool() {
 		return Program(js.Null()), errors.New("link failed: " + w.GetProgramInfoLog(program))
 	}
+	w.ValidateProgram(program)
+	if !w.getProgramParameter(program, w.ValidateStatus).Bool() {
+		return Program(js.Null()), errors.New("validation failed: " + w.GetProgramInfoLog(program))
+	}
+
+	w.DetachShader(program, vertex)
 	w.DeleteShader(vertex)
+	w.DetachShader(program, frag)
 	w.DeleteShader(frag)
 
 	return program, nil
@@ -286,6 +343,10 @@ func (w *WebGL) BindVertexArray(vao VertexArrayObject) {
 	w.gl.Call("bindVertexArray", js.Value(vao))
 }
 
+func (w *WebGL) ActiveTexture(textureUnit TextureUnit) {
+	w.gl.Call("activeTexture", int(textureUnit))
+}
+
 func (w *WebGL) BindTexture(textureType TextureType, texture Texture) {
 	if texture == nil {
 		w.gl.Call("bindTexture", int(textureType), nil)
@@ -326,10 +387,24 @@ func (w *WebGL) AttachShader(program Program, shader Shader) {
 	w.gl.Call("attachShader", js.Value(program), js.Value(shader))
 }
 
+func (w *WebGL) DetachShader(program Program, shader Shader) {
+	w.gl.Call("detachShader", js.Value(program), js.Value(shader))
+}
+
 // inteded for private use to avoid js.Value return
 func (w *WebGL) getShaderParameter(shader Shader, param ShaderParameter) js.Value {
 	v := w.gl.Call("getShaderParameter", js.Value(shader), int(param))
 	return v
+}
+
+// inteded for private use to avoid js.Value return
+func (w *WebGL) getParameter(param int) js.Value {
+	v := w.gl.Call("getParameter", param)
+	return v
+}
+
+func (w *WebGL) GetInteger(param Parameter) int {
+	return w.getParameter(int(param)).Int()
 }
 
 func (w *WebGL) GetShaderInfoLog(shader Shader) string {
@@ -348,6 +423,10 @@ func (w *WebGL) GetProgramInfoLog(p Program) string {
 
 func (w *WebGL) LinkProgram(program Program) {
 	w.gl.Call("linkProgram", js.Value(program))
+}
+
+func (w *WebGL) ValidateProgram(program Program) {
+	w.gl.Call("validateProgram", js.Value(program))
 }
 
 func (w *WebGL) GetUniformLocation(program Program, name string) Location {
