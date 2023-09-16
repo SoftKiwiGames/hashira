@@ -1,4 +1,4 @@
-package glu
+package hsystem
 
 import "syscall/js"
 

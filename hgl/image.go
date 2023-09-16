@@ -1,10 +1,9 @@
-package glu
+package hgl
 
 import (
 	"bytes"
 	"fmt"
 	"image"
-	"image/color"
 	"image/png"
 	"io"
 	"net/http"
@@ -15,17 +14,6 @@ type Image struct {
 
 	Width  int
 	Height int
-}
-
-func ParseHEXColor(hex string) [4]float32 {
-	var c color.RGBA
-	c.A = 0xff
-	_, err := fmt.Sscanf(hex, "#%02x%02x%02x", &c.R, &c.G, &c.B)
-	if err == nil {
-		return [4]float32{float32(c.R) / 255, float32(c.G) / 255, float32(c.B) / 255, float32(c.A) / 255}
-	}
-
-	return [4]float32{1, 0, 1, 1}
 }
 
 func LoadImagePNG(url string) (*Image, error) {

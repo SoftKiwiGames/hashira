@@ -1,4 +1,4 @@
-package glu
+package hjs
 
 import "syscall/js"
 

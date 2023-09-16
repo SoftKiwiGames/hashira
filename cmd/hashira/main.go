@@ -6,7 +6,9 @@ import (
 	"image"
 	"syscall/js"
 
-	"github.com/qbart/hashira/internal/glu"
+	"github.com/qbart/hashira/hgl"
+	"github.com/qbart/hashira/hmath"
+	"github.com/qbart/hashira/hsystem"
 )
 
 const vsSource = `
@@ -38,15 +40,15 @@ void main(void) {
 `
 
 type Camera2D struct {
-	ViewMatrix glu.Matrix4
-	Position   glu.Vertex
+	ViewMatrix hmath.Matrix4
+	Position   hmath.Vertex
 }
 
 func (c *Camera2D) Translate(x, y float32) {
 	c.Position[0] = -x
 	c.Position[1] = -y
 	c.Position[2] = 0
-	c.ViewMatrix = glu.TranslationMatrix(c.Position)
+	c.ViewMatrix = hmath.TranslationMatrix(c.Position)
 }
 
 type Map struct {
@@ -133,7 +135,7 @@ func (a *AnimatedTile) Tile() int {
 }
 
 type Mesh struct {
-	VertexData *glu.VertexBuffer3f
+	VertexData *hgl.VertexBuffer3f
 	SubMeshes  []*SubMesh
 
 	MapWidth  int
@@ -141,8 +143,8 @@ type Mesh struct {
 }
 
 type SubMesh struct {
-	Model   glu.Matrix4
-	UVs     *glu.VertexBuffer2f
+	Model   hmath.Matrix4
+	UVs     *hgl.VertexBuffer2f
 	Tileset *Tileset
 	Mesh    *Mesh
 }
@@ -187,22 +189,22 @@ type Widget struct {
 	canvasWidth  int
 	canvasHeight int
 
-	program       glu.Program
-	vao           glu.VertexArrayObject
-	GL            *glu.WebGL
-	GLX           *glu.WebGLExtended
-	locModel      glu.Location
-	locView       glu.Location
-	locProjection glu.Location
-	locTileset    glu.Location
-	texTileset    glu.Texture
+	program       hgl.Program
+	vao           hgl.VertexArrayObject
+	GL            *hgl.WebGL
+	GLX           *hgl.WebGLExtended
+	locModel      hgl.Location
+	locView       hgl.Location
+	locProjection hgl.Location
+	locTileset    hgl.Location
+	texTileset    hgl.Texture
 
-	vertexBuffer glu.Buffer
-	uvBuffer     glu.Buffer
+	vertexBuffer hgl.Buffer
+	uvBuffer     hgl.Buffer
 
 	camera          *Camera2D
-	matModel        glu.Matrix4
-	matProjection   glu.Matrix4
+	matModel        hmath.Matrix4
+	matProjection   hmath.Matrix4
 	mesh            *Mesh
 	tilesetImage    image.Image
 	backgroundColor [4]float32
@@ -223,13 +225,13 @@ func (o *Widget) Init() error {
 	if err != nil {
 		return err
 	}
-	img, err := glu.LoadImagePNG(o.config.Tiles.URL)
+	img, err := hgl.LoadImagePNG(o.config.Tiles.URL)
 	if err != nil {
 		return err
 	}
-	o.backgroundColor = glu.ParseHEXColor(o.config.Background)
+	o.backgroundColor = hgl.ParseHEXColor(o.config.Background)
 
-	gl, err := glu.NewWebGL(canvas)
+	gl, err := hgl.NewWebGL(canvas)
 	if err != nil {
 		return err
 	}
@@ -247,7 +249,7 @@ func (o *Widget) Init() error {
 	n := o.config.MapWidth() * o.config.MapHeight() * 6
 
 	mesh := &Mesh{
-		VertexData: glu.NewVertexBuffer3f(n),
+		VertexData: hgl.NewVertexBuffer3f(n),
 		SubMeshes:  make([]*SubMesh, len(o.config.Layers)),
 		MapWidth:   o.config.MapWidth(),
 		MapHeight:  o.config.MapHeight(),
@@ -286,8 +288,8 @@ func (o *Widget) Init() error {
 
 	for i := range o.config.Layers {
 		mesh.SubMeshes[i] = &SubMesh{
-			Model:   glu.TranslationMatrix(glu.Vertex{0, 0, o.config.Layers[i].Z}),
-			UVs:     glu.NewVertexBuffer2f(n),
+			Model:   hmath.TranslationMatrix(hmath.Vertex{0, 0, o.config.Layers[i].Z}),
+			UVs:     hgl.NewVertexBuffer2f(n),
 			Mesh:    mesh,
 			Tileset: tileset,
 		}
@@ -337,14 +339,14 @@ func (o *Widget) Init() error {
 
 	gl.UseProgram(program)
 	// orthographic projection with origin at center
-	o.matProjection = glu.Ortho(
+	o.matProjection = hmath.Ortho(
 		-float32((o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		float32((o.canvasWidth)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		-float32((o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		float32((o.canvasHeight)/o.config.Tiles.Size)/(2*o.config.Zoom),
 		-10, 10,
 	)
-	o.matModel = glu.IdentityMatrix()
+	o.matModel = hmath.IdentityMatrix()
 	o.locModel = gl.GetUniformLocation(program, "model")
 	o.locView = gl.GetUniformLocation(program, "view")
 	o.locProjection = gl.GetUniformLocation(program, "projection")
@@ -404,6 +406,6 @@ func (o *Widget) Tick(dt float32) {
 
 func main() {
 	game := &Widget{}
-	glu.RenderLoop(game)
+	hsystem.RenderLoop(game)
 	select {}
 }

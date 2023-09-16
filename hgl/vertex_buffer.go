@@ -1,4 +1,4 @@
-package glu
+package hgl
 
 func NewVertexBuffer3f(n int) *VertexBuffer3f {
 	// n * 3 elements (x, y, z)

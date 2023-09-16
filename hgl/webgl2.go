@@ -1,4 +1,4 @@
-package glu
+package hgl
 
 // Goal:
 //
@@ -13,6 +13,9 @@ import (
 	"reflect"
 	"syscall/js"
 	"unsafe"
+
+	"github.com/qbart/hashira/hjs"
+	"github.com/qbart/hashira/hmath"
 )
 
 type GLenum uint32
@@ -437,14 +440,14 @@ func (w *WebGL) GetAttribLocation(program Program, name string) AttribLocation {
 	return AttribLocation(uint32(w.gl.Call("getAttribLocation", js.Value(program), name).Int()))
 }
 
-func (w *WebGL) UniformMatrix4(location Location, mat Matrix4) {
+func (w *WebGL) UniformMatrix4(location Location, mat hmath.Matrix4) {
 	matJS := mat.JsValue()
 	// no transpose by default
 	w.gl.Call("uniformMatrix4fv", js.Value(location), false, matJS)
 }
 
 func (w *WebGL) TexImage2D(width int, height int, data []byte) {
-	pixels := NewUInt8Array(data)
+	pixels := hjs.NewUInt8Array(data)
 	w.gl.Call(
 		"texImage2D",
 		int(w.Texture2D),
@@ -477,7 +480,7 @@ func (w *WebGL) BindBuffer(target BufferType, buffer Buffer) {
 
 func (w *WebGL) BufferData(target BufferType, data BufferData, usage BufferUsage) {
 	b := data.Bytes()
-	dataJS := NewUInt8Array(b)
+	dataJS := hjs.NewUInt8Array(b)
 	js.CopyBytesToJS(dataJS, b)
 	w.gl.Call("bufferData", int(target), dataJS, int(usage))
 }

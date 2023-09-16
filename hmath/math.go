@@ -1,4 +1,4 @@
-package glu
+package hmath
 
 import (
 	"syscall/js"
