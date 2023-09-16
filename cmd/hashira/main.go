@@ -4,9 +4,9 @@ import (
 	"encoding/json"
 	"errors"
 	"image"
-	"syscall/js"
 
 	"github.com/qbart/hashira/hgl"
+	"github.com/qbart/hashira/hjs"
 	"github.com/qbart/hashira/hmath"
 	"github.com/qbart/hashira/hsystem"
 )
@@ -38,18 +38,6 @@ void main(void) {
   gl_FragColor = texture2D(tileset, vUV);
 }
 `
-
-type Camera2D struct {
-	ViewMatrix hmath.Matrix4
-	Position   hmath.Vertex
-}
-
-func (c *Camera2D) Translate(x, y float32) {
-	c.Position[0] = -x
-	c.Position[1] = -y
-	c.Position[2] = 0
-	c.ViewMatrix = hmath.TranslationMatrix(c.Position)
-}
 
 type Map struct {
 	Background string  `json:"background"`
@@ -202,7 +190,7 @@ type Widget struct {
 	vertexBuffer hgl.Buffer
 	uvBuffer     hgl.Buffer
 
-	camera          *Camera2D
+	camera          *hsystem.Camera2D
 	matModel        hmath.Matrix4
 	matProjection   hmath.Matrix4
 	mesh            *Mesh
@@ -212,11 +200,11 @@ type Widget struct {
 }
 
 func (o *Widget) Init() error {
-	canvas := js.Global().Get("document").Call("getElementById", "hashira-container")
+	canvas := hjs.GetElementByID("hashira-container")
 	if canvas.IsNull() {
 		return errors.New("canvas not found")
 	}
-	rawData := canvas.Call("getAttribute", "data-wasm")
+	rawData := canvas.GetAttribute("data-wasm")
 	if rawData.IsNull() {
 		return errors.New("[data-wasm] not found")
 	}
@@ -231,7 +219,7 @@ func (o *Widget) Init() error {
 	}
 	o.backgroundColor = hgl.ParseHEXColor(o.config.Background)
 
-	gl, err := hgl.NewWebGL(canvas)
+	gl, err := hgl.NewWebGL(hjs.Canvas(canvas))
 	if err != nil {
 		return err
 	}
@@ -240,7 +228,7 @@ func (o *Widget) Init() error {
 	glx := o.GLX
 	o.canvasWidth, o.canvasHeight = gl.CanvasSize()
 
-	o.camera = &Camera2D{}
+	o.camera = &hsystem.Camera2D{}
 	// move to the center of map
 	cx, cy := o.config.Center()
 	o.camera.Translate(cx, cy)

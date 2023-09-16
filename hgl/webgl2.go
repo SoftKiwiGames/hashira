@@ -97,9 +97,8 @@ type WebGLExtended struct {
 }
 
 type WebGL struct {
-	gl js.Value
-
-	Canvas js.Value
+	gl     hjs.WebGL2RenderingContext
+	Canvas hjs.Canvas
 
 	Texture2D TextureType
 	RGBA      PixelFormat
@@ -151,8 +150,8 @@ type WebGL struct {
 	MaxFragmentUniformVectors    Parameter
 }
 
-func NewWebGL(canvas js.Value) (*WebGL, error) {
-	gl := canvas.Call("getContext", "webgl2")
+func NewWebGL(canvas hjs.Canvas) (*WebGL, error) {
+	gl := canvas.GetWebGL2RenderingContext()
 	if gl.IsNull() {
 		return nil, fmt.Errorf("WebGL2 is not supported")
 	}
@@ -161,54 +160,54 @@ func NewWebGL(canvas js.Value) (*WebGL, error) {
 		Canvas: canvas,
 		gl:     gl,
 
-		Texture2D: TextureType(gl.Get("TEXTURE_2D").Int()),
-		RGBA:      PixelFormat(gl.Get("RGBA").Int()),
+		Texture2D: TextureType(gl.GetInt("TEXTURE_2D")),
+		RGBA:      PixelFormat(gl.GetInt("RGBA")),
 
-		DynamicDraw:        BufferUsage(gl.Get("DYNAMIC_DRAW").Int()),
-		ArrayBuffer:        BufferType(gl.Get("ARRAY_BUFFER").Int()),
-		ElementArrayBuffer: BufferType(gl.Get("ELEMENT_ARRAY_BUFFER").Int()),
-		UniformBuffer:      BufferType(gl.Get("UNIFORM_BUFFER").Int()),
+		DynamicDraw:        BufferUsage(gl.GetInt("DYNAMIC_DRAW")),
+		ArrayBuffer:        BufferType(gl.GetInt("ARRAY_BUFFER")),
+		ElementArrayBuffer: BufferType(gl.GetInt("ELEMENT_ARRAY_BUFFER")),
+		UniformBuffer:      BufferType(gl.GetInt("UNIFORM_BUFFER")),
 
-		Float:        Type(gl.Get("FLOAT").Int()),
-		UnsignedByte: Type(gl.Get("UNSIGNED_BYTE").Int()),
-		UnsignedInt:  Type(gl.Get("UNSIGNED_INT").Int()),
+		Float:        Type(gl.GetInt("FLOAT")),
+		UnsignedByte: Type(gl.GetInt("UNSIGNED_BYTE")),
+		UnsignedInt:  Type(gl.GetInt("UNSIGNED_INT")),
 
-		VertexShader:   ShaderType(gl.Get("VERTEX_SHADER").Int()),
-		FragmentShader: ShaderType(gl.Get("FRAGMENT_SHADER").Int()),
+		VertexShader:   ShaderType(gl.GetInt("VERTEX_SHADER")),
+		FragmentShader: ShaderType(gl.GetInt("FRAGMENT_SHADER")),
 
-		DepthTest: Capability(gl.Get("DEPTH_TEST").Int()),
-		Blend:     Capability(gl.Get("BLEND").Int()),
+		DepthTest: Capability(gl.GetInt("DEPTH_TEST")),
+		Blend:     Capability(gl.GetInt("BLEND")),
 
-		ColorBufferBit:   BufferMask(gl.Get("COLOR_BUFFER_BIT").Int()),
-		DepthBufferBit:   BufferMask(gl.Get("DEPTH_BUFFER_BIT").Int()),
-		StencilBufferBit: BufferMask(gl.Get("STENCIL_BUFFER_BIT").Int()),
+		ColorBufferBit:   BufferMask(gl.GetInt("COLOR_BUFFER_BIT")),
+		DepthBufferBit:   BufferMask(gl.GetInt("DEPTH_BUFFER_BIT")),
+		StencilBufferBit: BufferMask(gl.GetInt("STENCIL_BUFFER_BIT")),
 
-		SrcAlpha:         BlendFactor(gl.Get("SRC_ALPHA").Int()),
-		OneMinusSrcAlpha: BlendFactor(gl.Get("ONE_MINUS_SRC_ALPHA").Int()),
+		SrcAlpha:         BlendFactor(gl.GetInt("SRC_ALPHA")),
+		OneMinusSrcAlpha: BlendFactor(gl.GetInt("ONE_MINUS_SRC_ALPHA")),
 
-		Triangles: DrawMode(gl.Get("TRIANGLES").Int()),
+		Triangles: DrawMode(gl.GetInt("TRIANGLES")),
 
-		Texture0:         TextureUnit(gl.Get("TEXTURE0").Int()),
-		TextureMinFilter: TextureParameterName(gl.Get("TEXTURE_MIN_FILTER").Int()),
-		TextureMagFilter: TextureParameterName(gl.Get("TEXTURE_MAG_FILTER").Int()),
-		TextureWrapS:     TextureParameterName(gl.Get("TEXTURE_WRAP_S").Int()),
-		TextureWrapT:     TextureParameterName(gl.Get("TEXTURE_WRAP_T").Int()),
-		Nearest:          TextureParameter(gl.Get("NEAREST").Int()),
-		ClampToEdge:      TextureParameter(gl.Get("CLAMP_TO_EDGE").Int()),
+		Texture0:         TextureUnit(gl.GetInt("TEXTURE0")),
+		TextureMinFilter: TextureParameterName(gl.GetInt("TEXTURE_MIN_FILTER")),
+		TextureMagFilter: TextureParameterName(gl.GetInt("TEXTURE_MAG_FILTER")),
+		TextureWrapS:     TextureParameterName(gl.GetInt("TEXTURE_WRAP_S")),
+		TextureWrapT:     TextureParameterName(gl.GetInt("TEXTURE_WRAP_T")),
+		Nearest:          TextureParameter(gl.GetInt("NEAREST")),
+		ClampToEdge:      TextureParameter(gl.GetInt("CLAMP_TO_EDGE")),
 
-		CompileStatus:  ShaderParameter(gl.Get("COMPILE_STATUS").Int()),
-		LinkStatus:     ProgramParameter(gl.Get("LINK_STATUS").Int()),
-		ValidateStatus: ProgramParameter(gl.Get("VALIDATE_STATUS").Int()),
+		CompileStatus:  ShaderParameter(gl.GetInt("COMPILE_STATUS")),
+		LinkStatus:     ProgramParameter(gl.GetInt("LINK_STATUS")),
+		ValidateStatus: ProgramParameter(gl.GetInt("VALIDATE_STATUS")),
 
-		MaxCombinedTextureImageUnits: Parameter(gl.Get("MAX_COMBINED_TEXTURE_IMAGE_UNITS").Int()),
-		MaxTextureImageUnits:         Parameter(gl.Get("MAX_TEXTURE_IMAGE_UNITS").Int()),
-		MaxVertexTextureImageUnits:   Parameter(gl.Get("MAX_VERTEX_TEXTURE_IMAGE_UNITS").Int()),
-		MaxTextureSize:               Parameter(gl.Get("MAX_TEXTURE_SIZE").Int()),
-		MaxRenderbufferSize:          Parameter(gl.Get("MAX_RENDERBUFFER_SIZE").Int()),
-		MaxVertexAttribs:             Parameter(gl.Get("MAX_VERTEX_ATTRIBS").Int()),
-		MaxVaryingVectors:            Parameter(gl.Get("MAX_VARYING_VECTORS").Int()),
-		MaxVertexUniformVectors:      Parameter(gl.Get("MAX_VERTEX_UNIFORM_VECTORS").Int()),
-		MaxFragmentUniformVectors:    Parameter(gl.Get("MAX_FRAGMENT_UNIFORM_VECTORS").Int()),
+		MaxCombinedTextureImageUnits: Parameter(gl.GetInt("MAX_COMBINED_TEXTURE_IMAGE_UNITS")),
+		MaxTextureImageUnits:         Parameter(gl.GetInt("MAX_TEXTURE_IMAGE_UNITS")),
+		MaxVertexTextureImageUnits:   Parameter(gl.GetInt("MAX_VERTEX_TEXTURE_IMAGE_UNITS")),
+		MaxTextureSize:               Parameter(gl.GetInt("MAX_TEXTURE_SIZE")),
+		MaxRenderbufferSize:          Parameter(gl.GetInt("MAX_RENDERBUFFER_SIZE")),
+		MaxVertexAttribs:             Parameter(gl.GetInt("MAX_VERTEX_ATTRIBS")),
+		MaxVaryingVectors:            Parameter(gl.GetInt("MAX_VARYING_VECTORS")),
+		MaxVertexUniformVectors:      Parameter(gl.GetInt("MAX_VERTEX_UNIFORM_VECTORS")),
+		MaxFragmentUniformVectors:    Parameter(gl.GetInt("MAX_FRAGMENT_UNIFORM_VECTORS")),
 	}, nil
 }
 
@@ -305,8 +304,7 @@ func (w *WebGLExtended) GetShaderCompileStatus(shader Shader) bool {
 }
 
 func (w *WebGL) CanvasSize() (width, height int) {
-	return w.Canvas.Get("clientWidth").Int(),
-		w.Canvas.Get("clientHeight").Int()
+	return w.Canvas.GetClientWidth(), w.Canvas.GetClientHeight()
 }
 
 func (w *WebGL) Enable(capability Capability) {
