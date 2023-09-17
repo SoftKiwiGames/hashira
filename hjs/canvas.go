@@ -9,6 +9,14 @@ func (c Canvas) GetWebGL2RenderingContext() WebGL2RenderingContext {
 	return WebGL2RenderingContext(js.Value(c).Call("getContext", "webgl2"))
 }
 
+func (c Canvas) IsNull() bool {
+	return Node(c).IsNull()
+}
+
+func (c Canvas) GetAttribute(name string) js.Value {
+	return Node(c).GetAttribute(name)
+}
+
 func (c Canvas) GetClientWidth() int {
 	return js.Value(c).Get("clientWidth").Int()
 }

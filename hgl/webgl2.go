@@ -265,6 +265,10 @@ func (w *WebGLExtended) AssignAttribToBuffer(program Program, attrName string, b
 	w.VertexAttribPointer(attrLoc, size, typ, false, 0, 0)
 }
 
+func (w *WebGLExtended) ClearColor(c Color) {
+	w.WebGL.ClearColor(c[0], c[1], c[2], c[3])
+}
+
 func (w *WebGLExtended) EnableTransparency() {
 	w.Enable(w.Blend)
 	w.BlendFunc(w.SrcAlpha, w.OneMinusSrcAlpha)
@@ -301,10 +305,6 @@ func (w *WebGLExtended) CreateAndCompileShader(kind ShaderType, sourceCode strin
 func (w *WebGLExtended) GetShaderCompileStatus(shader Shader) bool {
 	v := w.getShaderParameter(shader, w.CompileStatus)
 	return v.Bool()
-}
-
-func (w *WebGL) CanvasSize() (width, height int) {
-	return w.Canvas.GetClientWidth(), w.Canvas.GetClientHeight()
 }
 
 func (w *WebGL) Enable(capability Capability) {

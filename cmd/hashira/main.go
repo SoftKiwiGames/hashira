@@ -5,6 +5,7 @@ import (
 	"errors"
 	"image"
 
+	"github.com/qbart/hashira/hashira"
 	"github.com/qbart/hashira/hgl"
 	"github.com/qbart/hashira/hjs"
 	"github.com/qbart/hashira/hmath"
@@ -60,10 +61,6 @@ type Layer struct {
 	ID   string  `json:"id"`
 	Data [][]int `json:"data"`
 	Z    float32 `json:"z"`
-}
-
-func (o *Map) Center() (x, y float32) {
-	return float32(o.MapWidth()) / 2, float32(o.MapHeight()) / 2
 }
 
 func (o *Map) MapWidth() int {
@@ -122,19 +119,12 @@ func (a *AnimatedTile) Tile() int {
 	return a.Animation.Frames[a.FrameIndex]
 }
 
-type Mesh struct {
-	VertexData *hgl.VertexBuffer3f
-	SubMeshes  []*SubMesh
+type MapMesh struct {
+	*hgl.Mesh
+	Tileset *Tileset
 
 	MapWidth  int
 	MapHeight int
-}
-
-type SubMesh struct {
-	Model   hmath.Matrix4
-	UVs     *hgl.VertexBuffer2f
-	Tileset *Tileset
-	Mesh    *Mesh
 }
 
 func TileUV(tile int, tileSize int, tilesetWidth int, tilesetHeight int) (float32, float32, float32, float32) {
@@ -150,10 +140,10 @@ func TileUV(tile int, tileSize int, tilesetWidth int, tilesetHeight int) (float3
 	return u, v, u2, v2
 }
 
-func (s *SubMesh) SetTileAt(x, y int, tile int) {
-	i := (y*int(s.Mesh.MapWidth) + x) * 6
+func SetTileAt(m *hashira.Map, s *hgl.SubMesh, tileset *Tileset, x, y int, tile int) {
+	i := (y*int(m.Width) + x) * 6
 
-	u, v, u2, v2 := TileUV(tile, s.Tileset.TileSize, s.Tileset.TextureWidth, s.Tileset.TextureHeight)
+	u, v, u2, v2 := TileUV(tile, tileset.TileSize, tileset.TextureWidth, tileset.TextureHeight)
 
 	// first triangle
 	//    2
@@ -173,6 +163,7 @@ func (s *SubMesh) SetTileAt(x, y int, tile int) {
 }
 
 type Widget struct {
+	world        *hashira.World
 	config       Map
 	canvasWidth  int
 	canvasHeight int
@@ -193,14 +184,16 @@ type Widget struct {
 	camera          *hsystem.Camera2D
 	matModel        hmath.Matrix4
 	matProjection   hmath.Matrix4
-	mesh            *Mesh
 	tilesetImage    image.Image
 	backgroundColor [4]float32
 	animatedTiles   []*AnimatedTile
+	tileset         Tileset
 }
 
 func (o *Widget) Init() error {
-	canvas := hjs.GetElementByID("hashira-container")
+	o.world = hashira.New()
+
+	canvas := hjs.Canvas(hjs.GetElementByID("hashira-container"))
 	if canvas.IsNull() {
 		return errors.New("canvas not found")
 	}
@@ -226,23 +219,18 @@ func (o *Widget) Init() error {
 	o.GL = gl
 	o.GLX = gl.Extended()
 	glx := o.GLX
-	o.canvasWidth, o.canvasHeight = gl.CanvasSize()
+	o.canvasWidth, o.canvasHeight = canvas.GetClientWidth(), canvas.GetClientHeight()
+
+	o.world.AddMap("main", o.config.MapWidth(), o.config.MapHeight())
 
 	o.camera = &hsystem.Camera2D{}
 	// move to the center of map
-	cx, cy := o.config.Center()
+	cx, cy := o.world.Maps.Get("main").Center()
 	o.camera.Translate(cx, cy)
 
-	// map size * 6 vertices per tile (we could share vertices between tiles but this is easier)
-	n := o.config.MapWidth() * o.config.MapHeight() * 6
-
-	mesh := &Mesh{
-		VertexData: hgl.NewVertexBuffer3f(n),
-		SubMeshes:  make([]*SubMesh, len(o.config.Layers)),
-		MapWidth:   o.config.MapWidth(),
-		MapHeight:  o.config.MapHeight(),
+	for _, layer := range o.config.Layers {
+		o.world.AddLayer("main", layer.ID, layer.Z)
 	}
-	o.mesh = mesh
 
 	o.animatedTiles = make([]*AnimatedTile, 0)
 	for l, layer := range o.config.Layers {
@@ -268,21 +256,13 @@ func (o *Widget) Init() error {
 	}
 
 	tileSize := o.config.Tiles.Size
-	tileset := &Tileset{
+	o.tileset = Tileset{
 		TileSize:      tileSize,
 		TextureWidth:  img.Width,
 		TextureHeight: img.Height,
 	}
 
-	for i := range o.config.Layers {
-		mesh.SubMeshes[i] = &SubMesh{
-			Model:   hmath.TranslationMatrix(hmath.Vertex{0, 0, o.config.Layers[i].Z}),
-			UVs:     hgl.NewVertexBuffer2f(n),
-			Mesh:    mesh,
-			Tileset: tileset,
-		}
-	}
-
+	mesh := o.world.Mesh.Get("main")
 	for my := 0; my < o.config.MapHeight(); my++ {
 		for mx := 0; mx < o.config.MapWidth(); mx++ {
 			z := float32(0)
@@ -314,7 +294,7 @@ func (o *Widget) Init() error {
 		for my := 0; my < o.config.MapHeight(); my++ {
 			for mx := 0; mx < o.config.MapWidth(); mx++ {
 				tile := o.config.Tile(i, mx, o.config.MapHeight()-my-1)
-				mesh.SubMeshes[i].SetTileAt(mx, my, tile)
+				SetTileAt(o.world.Maps.Get("main"), mesh.SubMeshes[i], &o.tileset, mx, my, tile)
 			}
 		}
 	}
@@ -356,12 +336,13 @@ func (o *Widget) Init() error {
 func (o *Widget) Tick(dt float32) {
 	gl := o.GL
 	glx := o.GLX
+	mesh := o.world.Mesh.Get("main")
 
 	gl.Enable(gl.DepthTest)
 	glx.EnableTransparency()
 
 	gl.Viewport(0, 0, o.canvasWidth, o.canvasHeight)
-	gl.ClearColor(o.backgroundColor[0], o.backgroundColor[1], o.backgroundColor[2], o.backgroundColor[3])
+	glx.ClearColor(o.backgroundColor)
 	gl.Clear(gl.ColorBufferBit | gl.DepthBufferBit)
 
 	gl.UseProgram(o.program)
@@ -375,19 +356,19 @@ func (o *Widget) Tick(dt float32) {
 	gl.BindVertexArray(o.vao)
 
 	gl.BindBuffer(gl.ArrayBuffer, o.vertexBuffer)
-	glx.BufferDataF(gl.ArrayBuffer, o.mesh.VertexData.Data(), gl.DynamicDraw)
+	glx.BufferDataF(gl.ArrayBuffer, mesh.VertexData.Data(), gl.DynamicDraw)
 
 	gl.BindBuffer(gl.ArrayBuffer, o.uvBuffer)
 	for _, animatedTile := range o.animatedTiles {
 		if animatedTile.Update(dt) {
-			o.mesh.SubMeshes[animatedTile.Layer].SetTileAt(animatedTile.X, animatedTile.Y, animatedTile.Tile())
+			SetTileAt(o.world.Maps.Get("main"), mesh.SubMeshes[animatedTile.Layer], &o.tileset, animatedTile.X, animatedTile.Y, animatedTile.Tile())
 		}
 	}
 
-	for _, subMesh := range o.mesh.SubMeshes {
+	for _, subMesh := range mesh.SubMeshes {
 		gl.UniformMatrix4(o.locModel, subMesh.Model)
 		glx.BufferDataF(gl.ArrayBuffer, subMesh.UVs.Data(), gl.DynamicDraw)
-		glx.DrawTriangles(0, o.mesh.VertexData.Len())
+		glx.DrawTriangles(0, mesh.VertexData.Len())
 	}
 	glx.UnbindAll()
 }
