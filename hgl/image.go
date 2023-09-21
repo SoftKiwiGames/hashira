@@ -16,6 +16,21 @@ type Image struct {
 	Height int
 }
 
+func LoadImagePNGFromBytes(imageData []byte) (*Image, error) {
+	img, err := png.Decode(bytes.NewReader(imageData))
+	if err != nil {
+		return nil, fmt.Errorf("error decoding image: %v", err)
+	}
+
+	bounds := img.Bounds()
+	width, height := bounds.Max.X, bounds.Max.Y
+	return &Image{
+		Image:  img,
+		Width:  width,
+		Height: height,
+	}, nil
+}
+
 func LoadImagePNG(url string) (*Image, error) {
 	resp, err := http.Get(url)
 	if err != nil {
@@ -32,18 +47,7 @@ func LoadImagePNG(url string) (*Image, error) {
 		return nil, fmt.Errorf("error reading image: %v", err)
 	}
 
-	img, err := png.Decode(bytes.NewReader(imageData))
-	if err != nil {
-		return nil, fmt.Errorf("error decoding image: %v", err)
-	}
-
-	bounds := img.Bounds()
-	width, height := bounds.Max.X, bounds.Max.Y
-	return &Image{
-		Image:  img,
-		Width:  width,
-		Height: height,
-	}, nil
+	return LoadImagePNGFromBytes(imageData)
 }
 
 func (img *Image) ByteSize() int {

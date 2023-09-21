@@ -30,59 +30,51 @@
   <script src="/wasm_exec.js"></script>
   <script src="/hashira.js"></script>
 
-  <canvas id="hashira-container" data-wasm-url="/hashira.wasm" width="336" height="336" data-wasm='{
-      "background": "#0099DB",
-      "zoom": 3,
-      "tiles": {
-        "url": "/tileset.png",
-        "size": 16,
-        "animations": [
-          {
-            "frames": [65, 68],
-            "delay": 1
-          },
-          {
-            "frames": [64, 67],
-            "delay": 1
-          },
-          {
-            "frames": [66, 69],
-            "delay": 1
-          }
-        ]
-      },
-      "layers": [
-        {
-          "id": "island",
-          "z": 0.0,
-          "data": [
-            [81, 81,81,81,81,81, 81],
-            [81, 81,81,81,81,81, 81],
-            [81, 0, 1, 1, 1, 2, 81],
-            [81, 32,33,33,33,34, 81],
-            [81, 64,65,65,65,66, 81],
-            [81, 81,81,81,81,81, 81],
-            [81, 81,81,81,81,81, 81]
-          ]
-        },
-        {
-          "id": "items",
-          "z": 1.0,
-          "data": [
-            [41, 41, 41,41,41,41, 41],
-            [41, 6,  6,42,41,41, 41],
-            [41, 22, 38,58,26,23, 41],
-            [41, 38, 12,46,29,74, 41],
-            [41, 41,108,41,41,41, 41],
-            [41, 41,102,41,41,41, 41],
-            [41, 41, 41,41,41,41, 41]
-          ]
-        }
-      ]
-    }'></canvas>
+  <canvas id="hashira-container" width="336" height="336"></canvas>
 
   <script>
-    Hashira.Init();
+    Hashira.Fetch("/hashira.wasm", (hashira) => {
+      hashira.bindCanvasByID("hashira-container");
+      hashira.loadTileset("/tileset.png", 16);
+      hashira.setBackgroundColor("#0099DB");
+      hashira.addMap("world", 7, 7);
+      hashira.addLayer("world", "island", 0.0);
+      hashira.addLayerData("world", "island", [
+        [81, 81, 81, 81, 81, 81, 81],
+        [81, 81, 81, 81, 81, 81, 81],
+        [81, 0, 1, 1, 1, 2, 81],
+        [81, 32, 33, 33, 33, 34, 81],
+        [81, 64, 65, 65, 65, 66, 81],
+        [81, 81, 81, 81, 81, 81, 81],
+        [81, 81, 81, 81, 81, 81, 81]
+      ]);
+      hashira.addLayer("world", "items", 1.0);
+      hashira.addLayerData("world", "island", [
+        [41, 41, 41, 41, 41, 41, 41],
+        [41, 6, 6, 42, 41, 41, 41],
+        [41, 22, 38, 58, 26, 23, 41],
+        [41, 38, 12, 46, 29, 74, 41],
+        [41, 41, 108, 41, 41, 41, 41],
+        [41, 41, 102, 41, 41, 41, 41],
+        [41, 41, 41, 41, 41, 41, 41]
+      ]);
+
+      //   "animations": [
+      //     {
+      //       "frames": [65, 68],
+      //       "delay": 1
+      //     },
+      //     {
+      //       "frames": [64, 67],
+      //       "delay": 1
+      //     },
+      //     {
+      //       "frames": [66, 69],
+      //       "delay": 1
+      //     }
+      //   ]
+      // },
+    });
   </script>
 
 </body>

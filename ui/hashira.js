@@ -1,7 +1,8 @@
 "use strict";
 
 const Hashira = {
-    Init: () => {
+    Fetch: (wasmURL, callback) => {
+        // return new Promise((resolve, reject) => {
         if (!WebAssembly.instantiateStreaming) {
             WebAssembly.instantiateStreaming = async (resp, importObject) => {
                 const source = await (await resp).arrayBuffer();
@@ -9,22 +10,53 @@ const Hashira = {
             };
         }
 
-        const canvases = document.getElementsByTagName("canvas");
-        for (var i = 0; i < canvases.length; i++) {
-            const canvas = canvases[i];
-            const url = canvas.getAttribute("data-wasm-url");
-            const id = canvas.getAttribute("id");
-
-            if (!id) {
-                canvas.setAttribute("id", "hashira-container-" + i);
+        let go = new Go();
+        WebAssembly.instantiateStreaming(fetch(wasmURL), go.importObject).then(
+            (result) => {
+                go.run(result.instance)
+                // TODO: in the future this should be instance based
+                // once multiple instances are supported by Hashira
+                callback(new HashiraClient());
             }
-            let go = new Go();
-            let mod, inst;
-            WebAssembly.instantiateStreaming(fetch(url), go.importObject).then(
-                (result) => {
-                    go.run(result.instance)
-                }
-            );
-        }
-    },
+        );
+        // });
+    }
+};
+
+class HashiraClient {
+    constructor() {
+    }
+
+    bindCanvasByID(canvasID) {
+        window.HashiraInitRenderLoop(canvasID);
+    }
+
+    sendEvent(event, data) {
+        window.HashiraSendEvent(event, data);
+    }
+
+    loadTileset(url, tileSize) {
+        fetch(url).then((response) => {
+            return response.arrayBuffer();
+        }).then((buffer) => {
+            this.sendEvent("resources.LoadTileset", { tileSize: tileSize, data: new Uint8Array(buffer) });
+
+        });
+    }
+
+    setBackgroundColor(hex) {
+        this.sendEvent("world.SetBackground", { color: hex });
+    }
+
+    addMap(name, width, height) {
+        this.sendEvent("world.AddMap", { name: name, width: width, height: height });
+    }
+
+    addLayer(mapName, layerName, z) {
+        this.sendEvent("world.AddLayer", { map: mapName, name: layerName, z: z });
+    }
+
+    addLayerData(mapName, layerName, data) {
+        this.sendEvent("world.AddLayerData", { map: mapName, name: layerName, data: data });
+    }
 }
