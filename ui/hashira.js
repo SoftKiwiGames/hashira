@@ -1,25 +1,25 @@
 "use strict";
 
 const Hashira = {
-    Fetch: (wasmURL, callback) => {
-        // return new Promise((resolve, reject) => {
-        if (!WebAssembly.instantiateStreaming) {
-            WebAssembly.instantiateStreaming = async (resp, importObject) => {
-                const source = await (await resp).arrayBuffer();
-                return await WebAssembly.instantiate(source, importObject);
-            };
-        }
-
-        let go = new Go();
-        WebAssembly.instantiateStreaming(fetch(wasmURL), go.importObject).then(
-            (result) => {
-                go.run(result.instance)
-                // TODO: in the future this should be instance based
-                // once multiple instances are supported by Hashira
-                callback(new HashiraClient());
+    Fetch: (wasmURL) => {
+        return new Promise((resolve, reject) => {
+            if (!WebAssembly.instantiateStreaming) {
+                WebAssembly.instantiateStreaming = async (resp, importObject) => {
+                    const source = await (await resp).arrayBuffer();
+                    return await WebAssembly.instantiate(source, importObject);
+                };
             }
-        );
-        // });
+
+            let go = new Go();
+            WebAssembly.instantiateStreaming(fetch(wasmURL), go.importObject).then(
+                (result) => {
+                    go.run(result.instance)
+                    // TODO: in the future this should be instance based
+                    // once multiple instances are supported by Hashira
+                    resolve(new HashiraClient());
+                }
+            );
+        });
     }
 };
 

@@ -33,7 +33,7 @@
   <canvas id="hashira-container" width="336" height="336"></canvas>
 
   <script>
-    Hashira.Fetch("/hashira.wasm", (hashira) => {
+    Hashira.Fetch("/hashira.wasm").then((hashira) => {
       hashira.bindCanvasByID("hashira-container");
       hashira.loadTileset("/tileset.png", 16);
       hashira.setBackgroundColor("#0099DB");
