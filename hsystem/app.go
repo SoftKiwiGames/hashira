@@ -39,7 +39,6 @@ type DefaultApp struct {
 	uvBuffer      hgl.Buffer
 
 	world           *hashira.World
-	hasMap          bool
 	camera          *hashira.Camera2D
 	matModel        hmath.Matrix4
 	matProjection   hmath.Matrix4
@@ -59,7 +58,7 @@ func (app *DefaultApp) Init() error {
 	app.world = hashira.New()
 	app.backgroundColor = hgl.Color{0, 0, 0, 1}
 
-	app.camera = &hashira.Camera2D{}
+	app.camera = &hashira.Camera2D{Zoom: 1}
 
 	program, err := glx.CreateDefaultProgram(VertexShaderSource, FragmentShaderSource)
 	if err != nil {
@@ -110,8 +109,8 @@ func (app *DefaultApp) Tick(dt float32) {
 
 	gl.BindVertexArray(app.vao)
 
-	if app.hasMap {
-		mesh := app.world.Mesh.Get("world")
+	app.world.Maps.ForEach(func(name string, m *hashira.Map) {
+		mesh := app.world.Mesh.Get(name)
 		gl.BindBuffer(gl.ArrayBuffer, app.vertexBuffer)
 		glx.BufferDataF(gl.ArrayBuffer, mesh.VertexData.Data(), gl.DynamicDraw)
 
@@ -127,7 +126,7 @@ func (app *DefaultApp) Tick(dt float32) {
 			glx.BufferDataF(gl.ArrayBuffer, subMesh.UVs.Data(), gl.DynamicDraw)
 			glx.DrawTriangles(0, mesh.VertexData.Len())
 		}
-	}
+	})
 	glx.UnbindAll()
 
 	if app.Commands.HasEvents() {
@@ -167,10 +166,6 @@ func (app *DefaultApp) handleEvent(event *Event) {
 		width := event.Data.GetInt("width")
 		height := event.Data.GetInt("height")
 		app.world.AddMap(name, width, height)
-		// move to the center of map
-		cx, cy := app.world.Maps.Get(name).Center()
-		app.camera.Translate(cx, cy)
-		app.hasMap = true
 
 	case "world.AddLayer":
 		mapName := event.Data.GetString("map")
@@ -183,6 +178,20 @@ func (app *DefaultApp) handleEvent(event *Event) {
 		name := event.Data.GetString("name")
 		data := event.Data.GetIntArrayOfIntArray("data")
 		app.world.AddLayerData(mapName, name, data)
+
+	case "camera.Translate":
+		x := event.Data.GetFloat32("x")
+		y := event.Data.GetFloat32("y")
+		app.camera.Translate(x, y)
+
+	case "camera.Zoom":
+		zoom := event.Data.GetFloat32("zoom")
+		app.camera.Zoom = zoom
+
+	case "camera.TranslateToMapCenter":
+		name := event.Data.GetString("map")
+		cx, cy := app.world.Maps.Get(name).Center()
+		app.camera.Translate(cx, cy)
 
 	default:
 		fmt.Println("Unknown event: ", event.Type)

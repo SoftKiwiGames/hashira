@@ -59,4 +59,16 @@ class HashiraClient {
     addLayerData(mapName, layerName, data) {
         this.sendEvent("world.AddLayerData", { map: mapName, name: layerName, data: data });
     }
+
+    setCameraZoom(zoom) {
+        this.sendEvent("camera.Zoom", { zoom: zoom });
+    }
+
+    setCameraTranslation(x, y) {
+        this.sendEvent("camera.Translate", { x: x, y: y });
+    }
+
+    setCameraToMapCenter(mapName) {
+        this.sendEvent("camera.TranslateToMapCenter", { map: mapName });
+    }
 }
