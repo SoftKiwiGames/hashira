@@ -78,10 +78,9 @@ func (w *World) AddLayerData(mapName string, name string, data [][]int) {
 	m := w.Maps.Get(mapName)
 	layer := m.Layers.Get(name)
 	layerMesh := m.SubMesh.Get(name)
-	layerData := make([][]int, m.Height)
+	layer.Data = data
 
 	for my := 0; my < m.Height; my++ {
-		data[my] = make([]int, m.Width)
 		for mx := 0; mx < m.Width; mx++ {
 			tile := layer.Tile(mx, m.Height-my-1)
 			tmp := Tileset{
@@ -92,7 +91,6 @@ func (w *World) AddLayerData(mapName string, name string, data [][]int) {
 			SetTileAt(m, layerMesh, &tmp, mx, my, tile)
 		}
 	}
-	layer.Data = layerData
 }
 
 func TileUV(tile int, tileSize int, tilesetWidth int, tilesetHeight int) (float32, float32, float32, float32) {

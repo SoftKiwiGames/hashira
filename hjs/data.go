@@ -27,7 +27,19 @@ func (o Object) GetFloat32(key string) float32 {
 }
 
 func (o Object) GetIntArrayOfIntArray(key string) [][]int {
-	return [][]int{}
+	jsData := js.Value(o).Get(key)
+	rows := make([][]int, jsData.Length())
+
+	for y := 0; y < len(rows); y++ {
+		jsRowData := jsData.Index(y)
+		row := make([]int, jsRowData.Length())
+		for x := 0; x < len(row); x++ {
+			row[x] = jsRowData.Index(x).Int()
+		}
+		rows[y] = row
+	}
+
+	return rows
 }
 
 func (o Object) GetBytes(key string) []byte {
