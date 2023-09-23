@@ -1,5 +1,5 @@
 bin/
 tmp/
 .DS_Store
-.wasm
+*.wasm
 tilesets/

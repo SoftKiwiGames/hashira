@@ -65,13 +65,13 @@ type Float32ArrayBuffer []float32
 
 func (f Float32ArrayBuffer) Bytes() []byte {
 	n := 4 * len(f)
-
 	ptr := unsafe.Pointer(&(f[0]))
 	pi := (*[1]byte)(ptr)
 	buf := (*pi)[:]
 	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
 	sh.Len = n
 	sh.Cap = n
+	return buf
 
 	// buffer := new(bytes.Buffer)
 	// for _, x := range f {
@@ -81,9 +81,7 @@ func (f Float32ArrayBuffer) Bytes() []byte {
 	// 		return nil
 	// 	}
 	// }
-
 	// return buffer.Bytes()
-	return buf
 }
 
 type ByteArrayBuffer []byte
