@@ -6,8 +6,10 @@ import (
 )
 
 type Map struct {
-	Width  int
-	Height int
+	Width      int
+	Height     int
+	TileWidth  int
+	TileHeight int
 
 	Layers  *ds.HashMap[string, *Layer]
 	SubMesh *ds.HashMap[string, *hgl.SubMesh]

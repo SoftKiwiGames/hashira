@@ -1,6 +1,7 @@
 package hmath
 
 import (
+	"math"
 	"syscall/js"
 
 	"github.com/go-gl/mathgl/mgl32"
@@ -40,4 +41,32 @@ func (m Matrix4) JsValue() js.Value {
 
 func Ortho(left, right, bottom, top float32, zNear, zFar float32) Matrix4 {
 	return Matrix4{mgl32.Ortho(left, right, bottom, top, zNear, zFar)}
+}
+
+func Clamp(value, min, max float32) float32 {
+	if value < min {
+		return min
+	}
+	if value > max {
+		return max
+	}
+	return value
+}
+
+func Clamp01(value float32) float32 {
+	if value < 0 {
+		return 0
+	}
+	if value > 1 {
+		return 1
+	}
+	return value
+}
+
+func CloseTo(a, b, epsilon float32) bool {
+	return Abs(a-b) <= epsilon
+}
+
+func Abs(a float32) float32 {
+	return float32(math.Abs(float64(a)))
 }

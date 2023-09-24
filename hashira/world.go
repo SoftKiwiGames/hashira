@@ -11,12 +11,14 @@ type World struct {
 	Mesh *ds.HashMap[string, *hgl.Mesh]
 }
 
-func (w *World) AddMap(name string, width int, height int) *Map {
+func (w *World) AddMap(name string, width int, height int, tileWidth int, tileHeight int) *Map {
 	m := &Map{
-		Width:   width,
-		Height:  height,
-		Layers:  ds.NewHashMap[string, *Layer](),
-		SubMesh: ds.NewHashMap[string, *hgl.SubMesh](),
+		Width:      width,
+		Height:     height,
+		TileWidth:  tileWidth,
+		TileHeight: tileHeight,
+		Layers:     ds.NewHashMap[string, *Layer](),
+		SubMesh:    ds.NewHashMap[string, *hgl.SubMesh](),
 	}
 	w.Maps.Set(name, m)
 
@@ -25,6 +27,9 @@ func (w *World) AddMap(name string, width int, height int) *Map {
 		SubMeshes:  make([]*hgl.SubMesh, 0),
 	}
 	w.Mesh.Set(name, mesh)
+
+	tw := float32(tileWidth)
+	th := float32(tileHeight)
 
 	for my := 0; my < height; my++ {
 		for mx := 0; mx < width; mx++ {
@@ -39,17 +44,17 @@ func (w *World) AddMap(name string, width int, height int) *Map {
 			// 0--1
 			//
 
-			mesh.VertexData.Set(i+0, x, y, z)
-			mesh.VertexData.Set(i+1, x+1, y, z)
-			mesh.VertexData.Set(i+2, x+1, y+1, z)
+			mesh.VertexData.Set(i+0, (x+0)*tw, (y+0)*th, z)
+			mesh.VertexData.Set(i+1, (x+1)*tw, (y+0)*th, z)
+			mesh.VertexData.Set(i+2, (x+1)*tw, (y+1)*th, z)
 
 			// second triangle
 			// 4--3
 			// | /
 			// 5
-			mesh.VertexData.Set(i+3, x+1, y+1, z)
-			mesh.VertexData.Set(i+4, x, y+1, z)
-			mesh.VertexData.Set(i+5, x, y, z)
+			mesh.VertexData.Set(i+3, (x+1)*tw, (y+1)*th, z)
+			mesh.VertexData.Set(i+4, (x+0)*tw, (y+1)*th, z)
+			mesh.VertexData.Set(i+5, (x+0)*tw, (y+0)*th, z)
 		}
 	}
 

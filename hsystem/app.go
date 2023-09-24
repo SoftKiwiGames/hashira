@@ -154,7 +154,7 @@ func (app *DefaultApp) handleEvent(event *Event) {
 		}
 		app.texTileset = app.GLX.CreateDefaultTexture(img)
 		app.hasTileset = true
-		app.matProjection = app.camera.Projection(app.canvasWidth, app.canvasHeight, app.tileset.TileSize)
+		app.matProjection = app.camera.Projection(app.canvasWidth, app.canvasHeight)
 
 	// world
 	case "world.SetBackground":
@@ -165,7 +165,9 @@ func (app *DefaultApp) handleEvent(event *Event) {
 		name := event.Data.GetString("name")
 		width := event.Data.GetInt("width")
 		height := event.Data.GetInt("height")
-		app.world.AddMap(name, width, height)
+		tileWidth := event.Data.GetInt("tileWidth")
+		tileHeight := event.Data.GetInt("tileHeight")
+		app.world.AddMap(name, width, height, tileWidth, tileHeight)
 
 	case "world.AddLayer":
 		mapName := event.Data.GetString("map")
@@ -184,13 +186,26 @@ func (app *DefaultApp) handleEvent(event *Event) {
 		y := event.Data.GetFloat32("y")
 		app.camera.Translate(x, y)
 
+	case "camera.TranslateBy":
+		dx := event.Data.GetFloat32("x")
+		dy := event.Data.GetFloat32("y")
+		app.camera.TranslateBy(dx, dy)
+
 	case "camera.Zoom":
 		zoom := event.Data.GetFloat32("zoom")
-		app.camera.Zoom = zoom
+		app.camera.SetZoom(zoom)
+
+	case "camera.ZoomBy":
+		zoom := event.Data.GetFloat32("delta")
+		app.camera.ZoomBy(zoom)
+		app.matProjection = app.camera.Projection(app.canvasWidth, app.canvasHeight)
 
 	case "camera.TranslateToMapCenter":
 		name := event.Data.GetString("map")
-		cx, cy := app.world.Maps.Get(name).Center()
+		m := app.world.Maps.Get(name)
+		cx, cy := m.Center()
+		cx *= float32(m.TileWidth)
+		cy *= float32(m.TileHeight)
 		app.camera.Translate(cx, cy)
 
 	default:

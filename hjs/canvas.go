@@ -18,11 +18,16 @@ func (c Canvas) GetAttribute(name string) js.Value {
 }
 
 func (c Canvas) GetClientWidth() int {
-	return js.Value(c).Get("clientWidth").Int()
+	return int(float32(js.Value(c).Get("clientWidth").Int()) * c.DevicePixelRatio())
 }
 
 func (c Canvas) GetClientHeight() int {
-	return js.Value(c).Get("clientHeight").Int()
+	return int(float32(js.Value(c).Get("clientHeight").Int()) * c.DevicePixelRatio())
+}
+
+func (c Canvas) DevicePixelRatio() float32 {
+	// return float32(js.Global().Get("devicePixelRatio").Float())
+	return 1
 }
 
 func (gl WebGL2RenderingContext) IsNull() bool {
