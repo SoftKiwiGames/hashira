@@ -7,7 +7,8 @@ import (
 
 func New() *World {
 	return &World{
-		Maps: ds.NewHashMap[string, *Map](),
-		Mesh: ds.NewHashMap[string, *hgl.Mesh](),
+		Maps:      ds.NewHashMap[string, *Map](),
+		Mesh:      ds.NewHashMap[string, *hgl.Mesh](),
+		Resources: &Resources{},
 	}
 }

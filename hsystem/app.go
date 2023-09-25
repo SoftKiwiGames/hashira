@@ -24,10 +24,7 @@ type DefaultApp struct {
 	GL  *hgl.WebGL
 	GLX *hgl.WebGLExtended
 
-	hasTileset   bool
-	tilesetImage *hgl.Image
-	tileset      hashira.Tileset
-	texTileset   hgl.Texture
+	hasTileset bool
 
 	program       hgl.Program
 	locModel      hgl.Location
@@ -102,9 +99,9 @@ func (app *DefaultApp) Tick(dt float32) {
 	gl.UniformMatrix4(app.locView, app.camera.ViewMatrix)
 	gl.UniformMatrix4(app.locProjection, app.matProjection)
 
-	if app.hasTileset {
+	if app.world.Resources.HasTileset() {
 		glx.ActiveTexture(gl.Texture0)
-		glx.BindTexture2D(app.texTileset)
+		glx.BindTexture2D(app.world.Resources.Texture)
 	}
 
 	gl.BindVertexArray(app.vao)
@@ -114,13 +111,13 @@ func (app *DefaultApp) Tick(dt float32) {
 		gl.BindBuffer(gl.ArrayBuffer, app.vertexBuffer)
 		glx.BufferDataF(gl.ArrayBuffer, mesh.VertexData.Data(), gl.DynamicDraw)
 
-		gl.BindBuffer(gl.ArrayBuffer, app.uvBuffer)
 		// for _, animatedTile := range o.animatedTiles {
 		// 	if animatedTile.Update(dt) {
 		// 		SetTileAt(o.world.Maps.Get("main"), mesh.SubMeshes[animatedTile.Layer], &o.tileset, animatedTile.X, animatedTile.Y, animatedTile.Tile())
 		// 	}
 		// }
 
+		gl.BindBuffer(gl.ArrayBuffer, app.uvBuffer)
 		for _, subMesh := range mesh.SubMeshes {
 			gl.UniformMatrix4(app.locModel, subMesh.Model)
 			glx.BufferDataF(gl.ArrayBuffer, subMesh.UVs.Data(), gl.DynamicDraw)
@@ -139,22 +136,13 @@ func (app *DefaultApp) handleEvent(event *Event) {
 	switch event.Type {
 	// resources
 	case "resources.LoadTileset":
-		size := event.Data.GetInt("tileSize")
 		data := event.Data.GetBytes("data")
-		img, err := hgl.LoadImagePNGFromBytes(data)
+		img, err := app.world.Resources.LoadTileset(data)
 		if err != nil {
 			fmt.Println("Error loading tileset: ", err)
 			return
 		}
-		app.tilesetImage = img
-		app.tileset = hashira.Tileset{
-			TileSize:      size,
-			TextureWidth:  img.Width,
-			TextureHeight: img.Height,
-		}
-		app.texTileset = app.GLX.CreateDefaultTexture(img)
-		app.hasTileset = true
-		app.matProjection = app.camera.Projection(app.canvasWidth, app.canvasHeight)
+		app.world.Resources.Texture = app.GLX.CreateDefaultTexture(img)
 
 	// world
 	case "world.SetBackground":
@@ -168,6 +156,7 @@ func (app *DefaultApp) handleEvent(event *Event) {
 		tileWidth := event.Data.GetInt("tileWidth")
 		tileHeight := event.Data.GetInt("tileHeight")
 		app.world.AddMap(name, width, height, tileWidth, tileHeight)
+		app.matProjection = app.camera.Projection(app.canvasWidth, app.canvasHeight)
 
 	case "world.AddLayer":
 		mapName := event.Data.GetString("map")
@@ -177,9 +166,17 @@ func (app *DefaultApp) handleEvent(event *Event) {
 
 	case "world.AddLayerData":
 		mapName := event.Data.GetString("map")
-		name := event.Data.GetString("name")
+		layerName := event.Data.GetString("layer")
 		data := event.Data.GetIntArrayOfIntArray("data")
-		app.world.AddLayerData(mapName, name, data)
+		app.world.AddLayerData(mapName, layerName, data)
+
+	case "world.SetTile":
+		mapName := event.Data.GetString("map")
+		layerName := event.Data.GetString("layer")
+		x := event.Data.GetInt("x")
+		y := event.Data.GetInt("y")
+		tile := event.Data.GetInt("tile")
+		app.world.SetTile(mapName, layerName, x, y, tile)
 
 	case "camera.Translate":
 		x := event.Data.GetFloat32("x")
@@ -194,6 +191,7 @@ func (app *DefaultApp) handleEvent(event *Event) {
 	case "camera.Zoom":
 		zoom := event.Data.GetFloat32("zoom")
 		app.camera.SetZoom(zoom)
+		app.matProjection = app.camera.Projection(app.canvasWidth, app.canvasHeight)
 
 	case "camera.ZoomBy":
 		zoom := event.Data.GetFloat32("delta")

@@ -44,12 +44,11 @@ class HashiraClient {
         window.HashiraSendEvent(event, data);
     }
 
-    loadTileset = (url, tileSize) => {
-        fetch(url).then((response) => {
+    loadTileset = (url) => {
+        return fetch(url).then((response) => {
             return response.arrayBuffer();
         }).then((buffer) => {
-            this.sendEvent("resources.LoadTileset", { tileSize: tileSize, data: new Uint8Array(buffer) });
-
+            this.sendEvent("resources.LoadTileset", { data: new Uint8Array(buffer) });
         });
     }
 
@@ -66,7 +65,11 @@ class HashiraClient {
     }
 
     addLayerData = (mapName, layerName, data) => {
-        this.sendEvent("world.AddLayerData", { map: mapName, name: layerName, data: data });
+        this.sendEvent("world.AddLayerData", { map: mapName, layer: layerName, data: data });
+    }
+
+    setTile = (mapName, layerName, x, y, tileID) => {
+        this.sendEvent("world.SetTile", { map: mapName, layer: layerName, x: x, y: y, tile: tileID });
     }
 
     setCameraZoom = (zoom) => {

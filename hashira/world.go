@@ -7,8 +7,9 @@ import (
 )
 
 type World struct {
-	Maps *ds.HashMap[string, *Map]
-	Mesh *ds.HashMap[string, *hgl.Mesh]
+	Resources *Resources
+	Maps      *ds.HashMap[string, *Map]
+	Mesh      *ds.HashMap[string, *hgl.Mesh]
 }
 
 func (w *World) AddMap(name string, width int, height int, tileWidth int, tileHeight int) *Map {
@@ -88,33 +89,23 @@ func (w *World) AddLayerData(mapName string, name string, data [][]int) {
 	for my := 0; my < m.Height; my++ {
 		for mx := 0; mx < m.Width; mx++ {
 			tile := layer.Tile(mx, m.Height-my-1)
-			tmp := Tileset{
-				TileSize:      16,
-				TextureWidth:  256,
-				TextureHeight: 256,
-			}
-			SetTileAt(m, layerMesh, &tmp, mx, my, tile)
+			w.setTileAt(m, layerMesh, mx, my, tile)
 		}
 	}
 }
 
-func TileUV(tile int, tileSize int, tilesetWidth int, tilesetHeight int) (float32, float32, float32, float32) {
-	tilesPerRow := tilesetWidth / tileSize
-	rowX := tile % tilesPerRow
-	rowY := tile / tilesPerRow
-
-	u := float32(rowX*tileSize) / float32(tilesetHeight)
-	u2 := float32((rowX+1)*tileSize) / float32(tilesetWidth)
-	v := float32(rowY*tileSize) / float32(tilesetHeight)
-	v2 := float32((rowY+1)*tileSize) / float32(tilesetHeight)
-
-	return u, v, u2, v2
+func (w *World) SetTile(mapName string, layerName string, x, y int, tile int) {
+	m := w.Maps.Get(mapName)
+	layer := m.Layers.Get(layerName)
+	layerMesh := m.SubMesh.Get(layerName)
+	layer.SetTile(x, y, tile)
+	w.setTileAt(m, layerMesh, x, y, tile)
 }
 
-func SetTileAt(m *Map, s *hgl.SubMesh, tileset *Tileset, x, y int, tile int) {
+func (w *World) setTileAt(m *Map, s *hgl.SubMesh, x, y int, tile int) {
 	i := (y*int(m.Width) + x) * 6
 
-	u, v, u2, v2 := TileUV(tile, tileset.TileSize, tileset.TextureWidth, tileset.TextureHeight)
+	u, v, u2, v2 := w.Resources.GetTileset().TextureUV(tile, m.TileWidth, m.TileHeight)
 
 	// first triangle
 	//    2
