@@ -12,14 +12,19 @@ func Init() {
 }
 
 func InitRenderLoop(this js.Value, args []js.Value) any {
-	if len(args) != 1 {
-		panic("Hashira render loop: expected 1 argument - canvasID")
+	if len(args) != 1 && len(args) != 2 {
+		panic("Hashira render loop: expected 1 or 2 arguments - canvasID, {options}")
 	}
 	canvasID := args[0].String()
 	canvas := hjs.Canvas(hjs.GetElementByID(canvasID))
 	if canvas.IsNull() {
 		return fmt.Errorf("CanvasID: `%s` not found", canvasID)
 	}
+	resize := hjs.Object(args[1]).GetBool("resize")
+	if resize {
+		canvas.Resize()
+	}
+
 	commands := &Commands{
 		Events: make([]*Event, 0, 10),
 	}

@@ -20,17 +20,13 @@
       background-color: #0099DB;
     }
 
-    .canvas {
+    canvas {
       position: absolute;
       top: 0;
       left: 0;
       width: 100vw;
       height: 100vh;
       display: block;
-    }
-
-    canvas {
-      border: 1px solid #000;
     }
   </style>
 </head>
@@ -39,17 +35,17 @@
   <script src="/wasm_exec.js"></script>
   <script src="/hashira.js"></script>
 
-  <canvas id="hashira-container" width="400" height="400"></canvas>
+  <canvas id="hashira"></canvas>
 
   <script>
-    const canvas = document.getElementById("hashira-container");
+    const canvas = document.getElementById("hashira");
 
     Hashira.Fetch("/hashira.wasm").then((hashira) => {
       const editor = new HashiraEditor(hashira);
       editor.bindEvents(canvas);
       window.hashira = hashira;
 
-      hashira.bindCanvasByID("hashira-container");
+      hashira.bindCanvasByID("hashira", true);
       hashira.loadTileset("/tileset/parking-lot.png")
       hashira.setBackgroundColor("#0099DB");
       hashira.addMap("parking", 11, 14, 16, 16);
@@ -110,6 +106,7 @@
         [148, 15, 114, 15, 15, 148, 15, 15, 114, 15, 148],
       ]);
     });
+
 
     //   "animations": [
     //     {

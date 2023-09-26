@@ -14,6 +14,10 @@ func NewUInt8Array(array []byte) js.Value {
 
 type Object js.Value
 
+func (o Object) GetBool(key string) bool {
+	return js.Value(o).Get(key).Bool()
+}
+
 func (o Object) GetString(key string) string {
 	return js.Value(o).Get(key).String()
 }

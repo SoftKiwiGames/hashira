@@ -1,6 +1,8 @@
 package hjs
 
-import "syscall/js"
+import (
+	"syscall/js"
+)
 
 type Canvas Node
 type WebGL2RenderingContext js.Value
@@ -18,16 +20,18 @@ func (c Canvas) GetAttribute(name string) js.Value {
 }
 
 func (c Canvas) GetClientWidth() int {
-	return int(float32(js.Value(c).Get("clientWidth").Int()) * c.DevicePixelRatio())
+	return int(float32(js.Value(c).Get("clientWidth").Int()))
 }
 
 func (c Canvas) GetClientHeight() int {
-	return int(float32(js.Value(c).Get("clientHeight").Int()) * c.DevicePixelRatio())
+	return int(float32(js.Value(c).Get("clientHeight").Int()))
 }
 
-func (c Canvas) DevicePixelRatio() float32 {
-	// return float32(js.Global().Get("devicePixelRatio").Float())
-	return 1
+func (c Canvas) Resize() {
+	width := c.GetClientWidth()
+	height := c.GetClientHeight()
+	Node(c).SetInt("width", width)
+	Node(c).SetInt("height", height)
 }
 
 func (gl WebGL2RenderingContext) IsNull() bool {

@@ -36,8 +36,8 @@ class HashiraClient {
     //     }, false);
     // }
 
-    bindCanvasByID = (canvasID) => {
-        window.HashiraInitRenderLoop(canvasID);
+    bindCanvasByID = (canvasID, resize) => {
+        window.HashiraInitRenderLoop(canvasID, { resize: resize });
     }
 
     sendEvent = (event, data) => {
