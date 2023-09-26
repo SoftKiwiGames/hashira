@@ -11,8 +11,9 @@ type Map struct {
 	TileWidth  int
 	TileHeight int
 
-	Layers  *ds.HashMap[string, *Layer]
-	SubMesh *ds.HashMap[string, *hgl.SubMesh]
+	Layers             *ds.HashMap[string, *Layer]
+	Mesh               *hgl.Mesh
+	SubMeshIndexByName *ds.HashMap[string, int]
 }
 
 func (m *Map) Center() (x, y float32) {

@@ -87,6 +87,14 @@ func (app *DefaultApp) Tick(dt float32) {
 	gl := app.GL
 	glx := app.GLX
 
+	app.world.Sync()
+
+	// for _, animatedTile := range o.animatedTiles {
+	// 	if animatedTile.Update(dt) {
+	// 		SetTileAt(o.world.Maps.Get("main"), mesh.SubMeshes[animatedTile.Layer], &o.tileset, animatedTile.X, animatedTile.Y, animatedTile.Tile())
+	// 	}
+	// }
+
 	gl.Enable(gl.DepthTest)
 	glx.EnableTransparency()
 
@@ -107,21 +115,14 @@ func (app *DefaultApp) Tick(dt float32) {
 	gl.BindVertexArray(app.vao)
 
 	app.world.Maps.ForEach(func(name string, m *hashira.Map) {
-		mesh := app.world.Mesh.Get(name)
 		gl.BindBuffer(gl.ArrayBuffer, app.vertexBuffer)
-		glx.BufferDataF(gl.ArrayBuffer, mesh.VertexData.Data(), gl.DynamicDraw)
-
-		// for _, animatedTile := range o.animatedTiles {
-		// 	if animatedTile.Update(dt) {
-		// 		SetTileAt(o.world.Maps.Get("main"), mesh.SubMeshes[animatedTile.Layer], &o.tileset, animatedTile.X, animatedTile.Y, animatedTile.Tile())
-		// 	}
-		// }
+		glx.BufferDataF(gl.ArrayBuffer, m.Mesh.VertexData.Data(), gl.DynamicDraw)
 
 		gl.BindBuffer(gl.ArrayBuffer, app.uvBuffer)
-		for _, subMesh := range mesh.SubMeshes {
+		for _, subMesh := range m.Mesh.SubMeshes {
 			gl.UniformMatrix4(app.locModel, subMesh.Model)
 			glx.BufferDataF(gl.ArrayBuffer, subMesh.UVs.Data(), gl.DynamicDraw)
-			glx.DrawTriangles(0, mesh.VertexData.Len())
+			glx.DrawTriangles(0, m.Mesh.VertexData.Len())
 		}
 	})
 	glx.UnbindAll()
@@ -143,6 +144,7 @@ func (app *DefaultApp) handleEvent(event *Event) {
 			return
 		}
 		app.world.Resources.Texture = app.GLX.CreateDefaultTexture(img)
+		app.world.Resync()
 
 	// world
 	case "world.SetBackground":
