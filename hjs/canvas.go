@@ -1,6 +1,7 @@
 package hjs
 
 import (
+	"math"
 	"syscall/js"
 )
 
@@ -19,12 +20,24 @@ func (c Canvas) GetAttribute(name string) js.Value {
 	return Node(c).GetAttribute(name)
 }
 
+func (c Canvas) DevicePixelRatio() float32 {
+	return float32(js.Global().Get("devicePixelRatio").Float())
+}
+
 func (c Canvas) GetClientWidth() int {
-	return int(float32(js.Value(c).Get("clientWidth").Int()))
+	return int(
+		math.Round(
+			float64(Node(c).GetInt("clientWidth")) * float64(c.DevicePixelRatio()),
+		),
+	)
 }
 
 func (c Canvas) GetClientHeight() int {
-	return int(float32(js.Value(c).Get("clientHeight").Int()))
+	return int(
+		math.Round(
+			float64(Node(c).GetInt("clientHeight")) * float64(c.DevicePixelRatio()),
+		),
+	)
 }
 
 func (c Canvas) Resize() {

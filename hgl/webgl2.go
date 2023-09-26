@@ -44,6 +44,10 @@ type BufferData interface {
 	Bytes() []byte
 }
 type Buffer js.Value
+type Framebuffer js.Value
+type FramebufferTarget int
+type FramebufferStatus int
+type FramebufferAttachment int
 type BufferUsage int
 type BufferType int
 type PixelFormat int
@@ -100,11 +104,22 @@ type WebGL struct {
 
 	Texture2D TextureType
 	RGBA      PixelFormat
+	RGB       PixelFormat
 
+	StaticDraw         BufferUsage
 	DynamicDraw        BufferUsage
 	ArrayBuffer        BufferType
 	ElementArrayBuffer BufferType
 	UniformBuffer      BufferType
+
+	FramebufferNone        Framebuffer
+	Framebuffer            FramebufferTarget
+	DrawFramebuffer        FramebufferTarget
+	ReadFramebuffer        FramebufferTarget
+	ColorAttachment0       FramebufferAttachment // up to 15 in WebGL2
+	DepthAttachment        FramebufferAttachment
+	StencilAttachment      FramebufferAttachment
+	DepthStencilAttachment FramebufferAttachment
 
 	Float        Type
 	UnsignedByte Type
@@ -133,9 +148,15 @@ type WebGL struct {
 	Nearest          TextureParameter
 	ClampToEdge      TextureParameter
 
-	CompileStatus  ShaderParameter
-	LinkStatus     ProgramParameter
-	ValidateStatus ProgramParameter
+	CompileStatus                          ShaderParameter
+	LinkStatus                             ProgramParameter
+	ValidateStatus                         ProgramParameter
+	FramebufferComplete                    FramebufferStatus
+	FramebufferIncompleteAttachment        FramebufferStatus
+	FramebufferIncompleteMissingAttachment FramebufferStatus
+	FramebufferIncompleteDimensions        FramebufferStatus
+	FramebufferUnsupported                 FramebufferStatus
+	FramebufferIncompleteMultisample       FramebufferStatus
 
 	MaxCombinedTextureImageUnits Parameter
 	MaxTextureImageUnits         Parameter
@@ -160,11 +181,21 @@ func NewWebGL(canvas hjs.Canvas) (*WebGL, error) {
 
 		Texture2D: TextureType(gl.GetInt("TEXTURE_2D")),
 		RGBA:      PixelFormat(gl.GetInt("RGBA")),
+		RGB:       PixelFormat(gl.GetInt("RGB")),
 
+		StaticDraw:         BufferUsage(gl.GetInt("STATIC_DRAW")),
 		DynamicDraw:        BufferUsage(gl.GetInt("DYNAMIC_DRAW")),
 		ArrayBuffer:        BufferType(gl.GetInt("ARRAY_BUFFER")),
 		ElementArrayBuffer: BufferType(gl.GetInt("ELEMENT_ARRAY_BUFFER")),
 		UniformBuffer:      BufferType(gl.GetInt("UNIFORM_BUFFER")),
+
+		Framebuffer:            FramebufferTarget(gl.GetInt("FRAMEBUFFER")),
+		DrawFramebuffer:        FramebufferTarget(gl.GetInt("DRAW_FRAMEBUFFER")),
+		ReadFramebuffer:        FramebufferTarget(gl.GetInt("READ_FRAMEBUFFER")),
+		ColorAttachment0:       FramebufferAttachment(gl.GetInt("COLOR_ATTACHMENT0")),
+		DepthAttachment:        FramebufferAttachment(gl.GetInt("DEPTH_ATTACHMENT")),
+		StencilAttachment:      FramebufferAttachment(gl.GetInt("STENCIL_ATTACHMENT")),
+		DepthStencilAttachment: FramebufferAttachment(gl.GetInt("DEPTH_STENCIL_ATTACHMENT")),
 
 		Float:        Type(gl.GetInt("FLOAT")),
 		UnsignedByte: Type(gl.GetInt("UNSIGNED_BYTE")),
@@ -193,9 +224,15 @@ func NewWebGL(canvas hjs.Canvas) (*WebGL, error) {
 		Nearest:          TextureParameter(gl.GetInt("NEAREST")),
 		ClampToEdge:      TextureParameter(gl.GetInt("CLAMP_TO_EDGE")),
 
-		CompileStatus:  ShaderParameter(gl.GetInt("COMPILE_STATUS")),
-		LinkStatus:     ProgramParameter(gl.GetInt("LINK_STATUS")),
-		ValidateStatus: ProgramParameter(gl.GetInt("VALIDATE_STATUS")),
+		CompileStatus:                          ShaderParameter(gl.GetInt("COMPILE_STATUS")),
+		LinkStatus:                             ProgramParameter(gl.GetInt("LINK_STATUS")),
+		ValidateStatus:                         ProgramParameter(gl.GetInt("VALIDATE_STATUS")),
+		FramebufferComplete:                    FramebufferStatus(gl.GetInt("FRAMEBUFFER_COMPLETE")),
+		FramebufferIncompleteAttachment:        FramebufferStatus(gl.GetInt("FRAMEBUFFER_INCOMPLETE_ATTACHMENT")),
+		FramebufferIncompleteMissingAttachment: FramebufferStatus(gl.GetInt("FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT")),
+		FramebufferIncompleteDimensions:        FramebufferStatus(gl.GetInt("FRAMEBUFFER_INCOMPLETE_DIMENSIONS")),
+		FramebufferUnsupported:                 FramebufferStatus(gl.GetInt("FRAMEBUFFER_UNSUPPORTED")),
+		FramebufferIncompleteMultisample:       FramebufferStatus(gl.GetInt("FRAMEBUFFER_INCOMPLETE_MULTISAMPLE")),
 
 		MaxCombinedTextureImageUnits: Parameter(gl.GetInt("MAX_COMBINED_TEXTURE_IMAGE_UNITS")),
 		MaxTextureImageUnits:         Parameter(gl.GetInt("MAX_TEXTURE_IMAGE_UNITS")),
@@ -213,15 +250,27 @@ func (w *WebGL) Extended() *WebGLExtended {
 	return &WebGLExtended{w}
 }
 
-func (w *WebGLExtended) CreateDefaultTexture(img *Image) Texture {
+func (w *WebGLExtended) CreateDefaultTextureRGBA(img *Image) Texture {
 	texture := w.CreateTexture()
 	w.BindTexture(w.Texture2D, texture)
 	w.TexParameteri(w.Texture2D, w.TextureWrapS, w.ClampToEdge)
 	w.TexParameteri(w.Texture2D, w.TextureWrapT, w.ClampToEdge)
 	w.TexParameteri(w.Texture2D, w.TextureMagFilter, w.Nearest)
 	w.TexParameteri(w.Texture2D, w.TextureMinFilter, w.Nearest)
-	w.TexImage2D(img.Width, img.Height, img.Pixels())
-	w.BindTexture(w.Texture2D, nil)
+	w.TexImage2DRGBA(img.Width, img.Height, img.Pixels())
+	w.BindTexture2D(nil)
+	return texture
+}
+
+func (w *WebGLExtended) CreateEmptyTextureRGBA(width int, height int) Texture {
+	texture := w.CreateTexture()
+	w.BindTexture(w.Texture2D, texture)
+	w.TexParameteri(w.Texture2D, w.TextureWrapS, w.ClampToEdge)
+	w.TexParameteri(w.Texture2D, w.TextureWrapT, w.ClampToEdge)
+	w.TexParameteri(w.Texture2D, w.TextureMagFilter, w.Nearest)
+	w.TexParameteri(w.Texture2D, w.TextureMinFilter, w.Nearest)
+	w.TexImage2DRGBA(width, height, make([]byte, width*height*4))
+	w.BindTexture2D(nil)
 	return texture
 }
 
@@ -305,6 +354,23 @@ func (w *WebGLExtended) GetShaderCompileStatus(shader Shader) bool {
 	return v.Bool()
 }
 
+func (w *WebGLExtended) FramebufferStatusError(status FramebufferStatus) error {
+	switch status {
+	case w.FramebufferIncompleteAttachment:
+		return fmt.Errorf("incomplete attachment")
+	case w.FramebufferIncompleteMissingAttachment:
+		return fmt.Errorf("incomplete missing attachment")
+	case w.FramebufferIncompleteDimensions:
+		return fmt.Errorf("incomplete dimensions")
+	case w.FramebufferUnsupported:
+		return fmt.Errorf("unsupported")
+	case w.FramebufferIncompleteMultisample:
+		return fmt.Errorf("incomplete multisample")
+	default:
+		return fmt.Errorf("unknown")
+	}
+}
+
 func (w *WebGL) Enable(capability Capability) {
 	w.gl.Call("enable", int(capability))
 }
@@ -329,12 +395,28 @@ func (w *WebGL) Viewport(x, y, width, height int) {
 	w.gl.Call("viewport", x, y, width, height)
 }
 
+func (w *WebGL) CreateFramebuffer() Framebuffer {
+	return Framebuffer(w.gl.Call("createFramebuffer"))
+}
+
+func (w *WebGL) BindFramebuffer(target FramebufferTarget, framebuffer Framebuffer) {
+	w.gl.Call("bindFramebuffer", int(target), js.Value(framebuffer))
+}
+
+func (w *WebGL) CheckFramebufferStatus(target FramebufferTarget) FramebufferStatus {
+	return FramebufferStatus(w.gl.Call("checkFramebufferStatus", int(target)).Int())
+}
+
+func (w *WebGL) FramebufferTexture2D(target FramebufferTarget, attachment FramebufferAttachment, textarget TextureType, texture Texture) {
+	w.gl.Call("framebufferTexture2D", int(target), int(attachment), int(textarget), js.Value(*texture), 0)
+}
+
 func (w *WebGL) CreateVertexArray() VertexArrayObject {
 	return VertexArrayObject(w.gl.Call("createVertexArray"))
 }
 
-func (gl *WebGL) CreateTexture() Texture {
-	tex := gl.gl.Call("createTexture")
+func (w *WebGL) CreateTexture() Texture {
+	tex := w.gl.Call("createTexture")
 	return Texture(&tex)
 }
 
@@ -442,7 +524,7 @@ func (w *WebGL) UniformMatrix4(location Location, mat hmath.Matrix4) {
 	w.gl.Call("uniformMatrix4fv", js.Value(location), false, matJS)
 }
 
-func (w *WebGL) TexImage2D(width int, height int, data []byte) {
+func (w *WebGL) TexImage2DRGBA(width int, height int, data []byte) {
 	pixels := hjs.NewUInt8Array(data)
 	w.gl.Call(
 		"texImage2D",
@@ -453,6 +535,22 @@ func (w *WebGL) TexImage2D(width int, height int, data []byte) {
 		height,
 		0, /*border*/
 		int(w.RGBA),
+		int(w.UnsignedByte),
+		pixels,
+	)
+}
+
+func (w *WebGL) TexImage2DRGB(width int, height int, data []byte) {
+	pixels := hjs.NewUInt8Array(data)
+	w.gl.Call(
+		"texImage2D",
+		int(w.Texture2D),
+		0, /*mipmap level*/
+		int(w.RGB),
+		width,
+		height,
+		0, /*border*/
+		int(w.RGB),
 		int(w.UnsignedByte),
 		pixels,
 	)

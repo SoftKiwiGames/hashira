@@ -26,14 +26,16 @@ type DefaultApp struct {
 
 	hasTileset bool
 
-	program       hgl.Program
-	locModel      hgl.Location
-	locView       hgl.Location
-	locProjection hgl.Location
-	locTileset    hgl.Location
-	vao           hgl.VertexArrayObject
-	vertexBuffer  hgl.Buffer
-	uvBuffer      hgl.Buffer
+	programQuad, program           hgl.Program
+	locModel                       hgl.Location
+	locView                        hgl.Location
+	locProjection                  hgl.Location
+	locQuad, locTileset            hgl.Location
+	vaoQuad, vao                   hgl.VertexArrayObject
+	vertexBufferQuad, vertexBuffer hgl.Buffer
+	uvBufferQuad, uvBuffer         hgl.Buffer
+	fbo                            hgl.Framebuffer
+	quadTexture                    hgl.Texture
 
 	world           *hashira.World
 	camera          *hashira.Camera2D
@@ -57,28 +59,71 @@ func (app *DefaultApp) Init() error {
 
 	app.camera = &hashira.Camera2D{Zoom: 1}
 
+	// shader tileset
 	program, err := glx.CreateDefaultProgram(VertexShaderSource, FragmentShaderSource)
 	if err != nil {
 		return err
 	}
 	app.program = program
-
 	gl.UseProgram(program)
-	// orthographic projection with origin at center
 	app.matProjection = hmath.IdentityMatrix()
 	app.matModel = hmath.IdentityMatrix()
 	app.locModel = gl.GetUniformLocation(program, "model")
 	app.locView = gl.GetUniformLocation(program, "view")
 	app.locProjection = gl.GetUniformLocation(program, "projection")
 	app.locTileset = gl.GetUniformLocation(program, "tileset")
-
-	// VAO
+	// VAO tileset
 	app.vao = gl.CreateVertexArray()
 	app.vertexBuffer = gl.CreateBuffer()
 	app.uvBuffer = gl.CreateBuffer()
 	gl.BindVertexArray(app.vao)
 	glx.AssignAttribToBuffer(program, "position", app.vertexBuffer, gl.Float, 3)
 	glx.AssignAttribToBuffer(program, "uv", app.uvBuffer, gl.Float, 2)
+
+	// shader fbo
+	programQuad, err := glx.CreateDefaultProgram(QuadVertexShaderSource, QuadFragmentShaderSource)
+	if err != nil {
+		return err
+	}
+	app.programQuad = programQuad
+	gl.UseProgram(programQuad)
+	app.locQuad = gl.GetUniformLocation(programQuad, "quad")
+	// VAO fbo
+	app.vaoQuad = gl.CreateVertexArray()
+	app.vertexBufferQuad = gl.CreateBuffer()
+	app.uvBufferQuad = gl.CreateBuffer()
+	gl.BindVertexArray(app.vaoQuad)
+	glx.AssignAttribToBuffer(programQuad, "position", app.vertexBufferQuad, gl.Float, 3)
+	glx.AssignAttribToBuffer(programQuad, "uv", app.uvBufferQuad, gl.Float, 2)
+	gl.BindBuffer(gl.ArrayBuffer, app.vertexBufferQuad)
+	glx.BufferDataF(gl.ArrayBuffer, []float32{
+		-1.0, -1.0, 0.0, // Bottom-left corner
+		1.0, -1.0, 0.0, // Bottom-right corner
+		-1.0, 1.0, 0.0, // Top-left corner
+		1.0, -1.0, 0.0, // Bottom-right corner
+		1.0, 1.0, 0.0, // Top-right corner
+		-1.0, 1.0, 0.0, // Top-left corner
+	}, gl.StaticDraw)
+	gl.BindBuffer(gl.ArrayBuffer, app.uvBufferQuad)
+	glx.BufferDataF(gl.ArrayBuffer, []float32{
+		0.0, 0.0, // Bottom-left corner
+		1.0, 0.0, // Bottom-right corner
+		0.0, 1.0, // Top-left corner
+		1.0, 0.0, // Bottom-right corner
+		1.0, 1.0, // Top-right corner
+		0.0, 1.0, // Top-left corner
+	}, gl.StaticDraw)
+
+	// fbo
+	app.fbo = gl.CreateFramebuffer()
+	app.quadTexture = glx.CreateEmptyTextureRGBA(app.canvasWidth, app.canvasHeight)
+	gl.BindFramebuffer(gl.Framebuffer, app.fbo)
+	gl.FramebufferTexture2D(gl.Framebuffer, gl.ColorAttachment0, gl.Texture2D, app.quadTexture)
+
+	if status := gl.CheckFramebufferStatus(gl.Framebuffer); status != gl.FramebufferComplete {
+		return fmt.Errorf("framebuffer error: %v", glx.FramebufferStatusError(status))
+	}
+	gl.BindFramebuffer(gl.Framebuffer, gl.FramebufferNone)
 
 	return nil
 }
@@ -95,6 +140,9 @@ func (app *DefaultApp) Tick(dt float32) {
 	// 	}
 	// }
 
+	// first pass - render to framebuffer
+	gl.BindFramebuffer(gl.Framebuffer, app.fbo)
+
 	gl.Enable(gl.DepthTest)
 	glx.EnableTransparency()
 
@@ -108,7 +156,6 @@ func (app *DefaultApp) Tick(dt float32) {
 	gl.UniformMatrix4(app.locProjection, app.matProjection)
 
 	if app.world.Resources.HasTileset() {
-		glx.ActiveTexture(gl.Texture0)
 		glx.BindTexture2D(app.world.Resources.Texture)
 	}
 
@@ -127,6 +174,18 @@ func (app *DefaultApp) Tick(dt float32) {
 	})
 	glx.UnbindAll()
 
+	// second pass - render framebuffer to canvas
+	gl.Disable(gl.DepthTest)
+	gl.BindFramebuffer(gl.Framebuffer, gl.FramebufferNone)
+	glx.BindTexture2D(app.quadTexture)
+	gl.Viewport(0, 0, app.canvasWidth, app.canvasHeight)
+	glx.ClearColor(app.backgroundColor)
+	gl.Clear(gl.ColorBufferBit)
+
+	gl.UseProgram(app.programQuad)
+	gl.BindVertexArray(app.vaoQuad)
+	glx.DrawTriangles(0, 6)
+
 	if app.Commands.HasEvents() {
 		event := app.Commands.PeekEvent()
 		app.handleEvent(event)
@@ -143,7 +202,7 @@ func (app *DefaultApp) handleEvent(event *Event) {
 			fmt.Println("Error loading tileset: ", err)
 			return
 		}
-		app.world.Resources.Texture = app.GLX.CreateDefaultTexture(img)
+		app.world.Resources.Texture = app.GLX.CreateDefaultTextureRGBA(img)
 		app.world.Resync()
 
 	// world

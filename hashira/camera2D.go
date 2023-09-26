@@ -12,6 +12,7 @@ type Camera2D struct {
 
 func (c *Camera2D) ZoomBy(delta float32) {
 	c.Zoom = hmath.Clamp(c.Zoom+delta, 0.5, 20)
+	// c.Zoom = hmath.Clamp(c.Zoom+delta, 1, 20)
 
 	// correction for going from 0.5 to 1
 	if hmath.CloseTo(c.Zoom, 1.5, 0.1) {
