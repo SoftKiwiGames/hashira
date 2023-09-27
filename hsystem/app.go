@@ -154,8 +154,10 @@ func (app *DefaultApp) Tick(dt float32) {
 	gl.UniformMatrix4(app.locModel, app.matModel)
 	gl.UniformMatrix4(app.locView, app.camera.ViewMatrix)
 	gl.UniformMatrix4(app.locProjection, app.matProjection)
+	gl.Uniform1Int(app.locTileset, 1)
 
 	if app.world.Resources.HasTileset() {
+		gl.ActiveTexture(gl.Texture1)
 		glx.BindTexture2D(app.world.Resources.Texture)
 	}
 
@@ -172,11 +174,14 @@ func (app *DefaultApp) Tick(dt float32) {
 			glx.DrawTriangles(0, m.Mesh.VertexData.Len())
 		}
 	})
-	glx.UnbindAll()
+
+	gl.BindTexture(gl.Texture2D, gl.TextureNone)
+	gl.BindVertexArray(gl.VertexArrayObjectNone)
+	gl.BindFramebuffer(gl.Framebuffer, gl.FramebufferNone)
 
 	// second pass - render framebuffer to canvas
 	gl.Disable(gl.DepthTest)
-	gl.BindFramebuffer(gl.Framebuffer, gl.FramebufferNone)
+	gl.ActiveTexture(gl.Texture0)
 	glx.BindTexture2D(app.quadTexture)
 	gl.Viewport(0, 0, app.canvasWidth, app.canvasHeight)
 	glx.ClearColor(app.backgroundColor)

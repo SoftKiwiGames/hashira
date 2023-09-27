@@ -49,5 +49,5 @@ uniform sampler2D quad;
 
 void main()
 { 
-    gl_FragColor = texture2D(quad, vUV);
+    gl_FragData[0] = texture2D(quad, vUV);
 }`

@@ -106,11 +106,12 @@ type WebGL struct {
 	RGBA      PixelFormat
 	RGB       PixelFormat
 
-	StaticDraw         BufferUsage
-	DynamicDraw        BufferUsage
-	ArrayBuffer        BufferType
-	ElementArrayBuffer BufferType
-	UniformBuffer      BufferType
+	StaticDraw            BufferUsage
+	DynamicDraw           BufferUsage
+	ArrayBuffer           BufferType
+	ElementArrayBuffer    BufferType
+	UniformBuffer         BufferType
+	VertexArrayObjectNone VertexArrayObject
 
 	FramebufferNone        Framebuffer
 	Framebuffer            FramebufferTarget
@@ -140,7 +141,16 @@ type WebGL struct {
 
 	Triangles DrawMode
 
+	// at least 8 is guaranteed
 	Texture0         TextureUnit
+	Texture1         TextureUnit
+	Texture2         TextureUnit
+	Texture3         TextureUnit
+	Texture4         TextureUnit
+	Texture5         TextureUnit
+	Texture6         TextureUnit
+	Texture7         TextureUnit
+	TextureNone      Texture
 	TextureMinFilter TextureParameterName
 	TextureMagFilter TextureParameterName
 	TextureWrapS     TextureParameterName
@@ -217,6 +227,13 @@ func NewWebGL(canvas hjs.Canvas) (*WebGL, error) {
 		Triangles: DrawMode(gl.GetInt("TRIANGLES")),
 
 		Texture0:         TextureUnit(gl.GetInt("TEXTURE0")),
+		Texture1:         TextureUnit(gl.GetInt("TEXTURE1")),
+		Texture2:         TextureUnit(gl.GetInt("TEXTURE2")),
+		Texture3:         TextureUnit(gl.GetInt("TEXTURE3")),
+		Texture4:         TextureUnit(gl.GetInt("TEXTURE4")),
+		Texture5:         TextureUnit(gl.GetInt("TEXTURE5")),
+		Texture6:         TextureUnit(gl.GetInt("TEXTURE6")),
+		Texture7:         TextureUnit(gl.GetInt("TEXTURE7")),
 		TextureMinFilter: TextureParameterName(gl.GetInt("TEXTURE_MIN_FILTER")),
 		TextureMagFilter: TextureParameterName(gl.GetInt("TEXTURE_MAG_FILTER")),
 		TextureWrapS:     TextureParameterName(gl.GetInt("TEXTURE_WRAP_S")),
@@ -327,11 +344,6 @@ func (w *WebGLExtended) BufferDataF(target BufferType, data []float32, usage Buf
 
 func (w *WebGLExtended) DrawTriangles(offset int, count int) {
 	w.DrawArrays(w.Triangles, offset, count)
-}
-
-func (w *WebGLExtended) UnbindAll() {
-	w.BindVertexArray(VertexArrayObject{})
-	w.BindTexture(w.Texture2D, nil)
 }
 
 func (w *WebGLExtended) BindTexture2D(texture Texture) {
@@ -522,6 +534,10 @@ func (w *WebGL) UniformMatrix4(location Location, mat hmath.Matrix4) {
 	matJS := mat.JsValue()
 	// no transpose by default
 	w.gl.Call("uniformMatrix4fv", js.Value(location), false, matJS)
+}
+
+func (w *WebGL) Uniform1Int(location Location, value int) {
+	w.gl.Call("uniform1i", js.Value(location), value)
 }
 
 func (w *WebGL) TexImage2DRGBA(width int, height int, data []byte) {
