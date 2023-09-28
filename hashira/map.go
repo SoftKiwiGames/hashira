@@ -16,6 +16,12 @@ type Map struct {
 	SubMeshIndexByName *ds.HashMap[string, int]
 }
 
+func (m *Map) TileIndex(x, y int) int {
+	// flip y for natural top down order
+	y = m.Height - y - 1
+	return y*m.Width + x
+}
+
 func (m *Map) Center() (x, y float32) {
 	return float32(m.Width) / 2, float32(m.Height) / 2
 }

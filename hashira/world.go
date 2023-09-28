@@ -22,8 +22,8 @@ func (w *World) AddMap(name string, width int, height int, tileWidth int, tileHe
 		SubMeshIndexByName: ds.NewHashMap[string, int](),
 	}
 	mesh := &hgl.Mesh{
-		VertexData: hgl.NewVertexBuffer3f(m.VerticesNeeded()),
-		SubMeshes:  make([]*hgl.SubMesh, 0),
+		Vertices:  hgl.NewVertexBuffer3f(m.VerticesNeeded()),
+		SubMeshes: make([]*hgl.SubMesh, 0),
 	}
 	m.Mesh = mesh
 	w.Maps.Set(name, m)
@@ -44,17 +44,17 @@ func (w *World) AddMap(name string, width int, height int, tileWidth int, tileHe
 			// 0--1
 			//
 
-			mesh.VertexData.Set(i+0, (x+0)*tw, (y+0)*th, z)
-			mesh.VertexData.Set(i+1, (x+1)*tw, (y+0)*th, z)
-			mesh.VertexData.Set(i+2, (x+1)*tw, (y+1)*th, z)
+			mesh.Vertices.Set(i+0, (x+0)*tw, (y+0)*th, z)
+			mesh.Vertices.Set(i+1, (x+1)*tw, (y+0)*th, z)
+			mesh.Vertices.Set(i+2, (x+1)*tw, (y+1)*th, z)
 
 			// second triangle
 			// 4--3
 			// | /
 			// 5
-			mesh.VertexData.Set(i+3, (x+1)*tw, (y+1)*th, z)
-			mesh.VertexData.Set(i+4, (x+0)*tw, (y+1)*th, z)
-			mesh.VertexData.Set(i+5, (x+0)*tw, (y+0)*th, z)
+			mesh.Vertices.Set(i+3, (x+1)*tw, (y+1)*th, z)
+			mesh.Vertices.Set(i+4, (x+0)*tw, (y+1)*th, z)
+			mesh.Vertices.Set(i+5, (x+0)*tw, (y+0)*th, z)
 		}
 	}
 
@@ -107,27 +107,11 @@ func (w *World) SetTile(mapName string, layerName string, x, y int, tile int) {
 }
 
 func (w *World) buildTileUV(m *Map, s *hgl.SubMesh, x, y int, tile int) {
-	// flip y for natural top down order
-	y = m.Height - y - 1
-	i := (y*int(m.Width) + x) * 6
+	i := m.TileIndex(x, y)
 
-	u, v, u2, v2 := w.Resources.GetTileset().TextureUV(tile, m.TileWidth, m.TileHeight)
+	u0, v0, u1, v1 := w.Resources.GetTileset().TextureUV(tile, m.TileWidth, m.TileHeight)
 
-	// first triangle
-	//    2
-	//  / |
-	// 0--1
-	//
-	s.UVs.Set(i+0, u, v2)
-	s.UVs.Set(i+1, u2, v2)
-	s.UVs.Set(i+2, u2, v)
-	// second triangle
-	// 4--3
-	// | /
-	// 5
-	s.UVs.Set(i+3, u2, v)
-	s.UVs.Set(i+4, u, v)
-	s.UVs.Set(i+5, u, v2)
+	s.UVs.SetQuad(i, u0, v0, u1, v1)
 }
 
 func (w *World) Resync() {

@@ -33,9 +33,10 @@ type DefaultApp struct {
 	locQuad, locTileset            hgl.Location
 	vaoQuad, vao                   hgl.VertexArrayObject
 	vertexBufferQuad, vertexBuffer hgl.Buffer
-	uvBufferQuad, uvBuffer         hgl.Buffer
-	fbo                            hgl.Framebuffer
-	quadTexture                    hgl.Texture
+
+	uvBufferQuad, uvBuffer hgl.Buffer
+	fbo                    hgl.Framebuffer
+	quadTexture            hgl.Texture
 
 	world           *hashira.World
 	camera          *hashira.Camera2D
@@ -76,6 +77,7 @@ func (app *DefaultApp) Init() error {
 	app.vao = gl.CreateVertexArray()
 	app.vertexBuffer = gl.CreateBuffer()
 	app.uvBuffer = gl.CreateBuffer()
+
 	gl.BindVertexArray(app.vao)
 	glx.AssignAttribToBuffer(program, "position", app.vertexBuffer, gl.Float, 3)
 	glx.AssignAttribToBuffer(program, "uv", app.uvBuffer, gl.Float, 2)
@@ -165,13 +167,13 @@ func (app *DefaultApp) Tick(dt float32) {
 
 	app.world.Maps.ForEach(func(name string, m *hashira.Map) {
 		gl.BindBuffer(gl.ArrayBuffer, app.vertexBuffer)
-		glx.BufferDataF(gl.ArrayBuffer, m.Mesh.VertexData.Data(), gl.DynamicDraw)
+		glx.BufferDataF(gl.ArrayBuffer, m.Mesh.Vertices.Data(), gl.DynamicDraw)
 
 		gl.BindBuffer(gl.ArrayBuffer, app.uvBuffer)
 		for _, subMesh := range m.Mesh.SubMeshes {
 			gl.UniformMatrix4(app.locModel, subMesh.Model)
 			glx.BufferDataF(gl.ArrayBuffer, subMesh.UVs.Data(), gl.DynamicDraw)
-			glx.DrawTriangles(0, m.Mesh.VertexData.Len())
+			glx.DrawTriangles(0, m.Mesh.Vertices.Len())
 		}
 	})
 

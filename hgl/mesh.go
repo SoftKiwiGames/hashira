@@ -3,8 +3,8 @@ package hgl
 import "github.com/qbart/hashira/hmath"
 
 type Mesh struct {
-	VertexData *VertexBuffer3f
-	SubMeshes  []*SubMesh
+	Vertices  *VertexBuffer3f
+	SubMeshes []*SubMesh
 }
 
 type SubMesh struct {

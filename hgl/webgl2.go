@@ -66,6 +66,8 @@ type ProgramParameter int
 type Parameter int
 
 type Float32ArrayBuffer []float32
+type ByteArrayBuffer []byte
+type UInt32ArrayBuffer []uint32
 
 func (f Float32ArrayBuffer) Bytes() []byte {
 	n := 4 * len(f)
@@ -88,10 +90,29 @@ func (f Float32ArrayBuffer) Bytes() []byte {
 	// return buffer.Bytes()
 }
 
-type ByteArrayBuffer []byte
-
 func (b ByteArrayBuffer) Bytes() []byte {
 	return b
+}
+
+func (u UInt32ArrayBuffer) Bytes() []byte {
+	n := 4 * len(u)
+	ptr := unsafe.Pointer(&(u[0]))
+	pi := (*[1]byte)(ptr)
+	buf := (*pi)[:]
+	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
+	sh.Len = n
+	sh.Cap = n
+	return buf
+
+	// buffer := new(bytes.Buffer)
+	// for _, x := range f {
+	// 	err := binary.Write(buffer, binary.LittleEndian, x)
+	// 	if err != nil {
+	// 		fmt.Println("Error:", err)
+	// 		return nil
+	// 	}
+	// }
+	// return buffer.Bytes()
 }
 
 type WebGLExtended struct {
@@ -342,8 +363,16 @@ func (w *WebGLExtended) BufferDataF(target BufferType, data []float32, usage Buf
 	w.BufferData(target, Float32ArrayBuffer(data), usage)
 }
 
+func (w *WebGLExtended) BufferDataU(target BufferType, data []uint32, usage BufferUsage) {
+	w.BufferData(target, UInt32ArrayBuffer(data), usage)
+}
+
 func (w *WebGLExtended) DrawTriangles(offset int, count int) {
 	w.DrawArrays(w.Triangles, offset, count)
+}
+
+func (w *WebGLExtended) DrawIndexedTriangles(count int, offset int) {
+	w.DrawElements(w.Triangles, count, offset)
 }
 
 func (w *WebGLExtended) BindTexture2D(texture Texture) {
@@ -597,4 +626,8 @@ func (w *WebGL) BufferData(target BufferType, data BufferData, usage BufferUsage
 
 func (w *WebGL) DrawArrays(mode DrawMode, first int, count int) {
 	w.gl.Call("drawArrays", int(mode), first, count)
+}
+
+func (w *WebGL) DrawElements(mode DrawMode, count int, offset int) {
+	w.gl.Call("drawElements", int(mode), count, int(w.UnsignedInt), int(offset))
 }

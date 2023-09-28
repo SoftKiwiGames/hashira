@@ -4,6 +4,8 @@ import "syscall/js"
 
 type Node js.Value
 
+type JSFunc func(js.Value, []js.Value)
+
 func GetElementByID(id string) Node {
 	return Node(js.Global().Get("document").Call("getElementById", id))
 }

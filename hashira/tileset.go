@@ -14,11 +14,13 @@ func (t *Tileset) TextureUV(tile int, tileWidth int, tileHeight int) (float32, f
 	tilesPerRow := t.Width / tileWidth
 	rowX := tile % tilesPerRow
 	rowY := tile / tilesPerRow
+	w := float32(t.Width)
+	h := float32(t.Height)
 
-	u := float32(rowX*tileWidth) / float32(t.Width)
-	u2 := float32((rowX+1)*tileWidth) / float32(t.Width)
-	v := float32(rowY*tileHeight) / float32(t.Height)
-	v2 := float32((rowY+1)*tileHeight) / float32(t.Height)
+	u0 := float32(rowX*tileWidth) / w
+	v0 := float32(rowY*tileHeight) / h
+	u1 := float32((rowX+1)*tileWidth-1) / w
+	v1 := float32((rowY+1)*tileHeight-1) / h
 
-	return u, v, u2, v2
+	return u0, v0, u1, v1
 }

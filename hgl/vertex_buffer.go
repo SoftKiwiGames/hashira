@@ -57,6 +57,18 @@ func (v *VertexBuffer2f) Set(i int, x, y float32) {
 	v.data[i+1] = y
 }
 
+func (v *VertexBuffer2f) SetQuad(i int, u0, v0, u1, v1 float32) {
+	i *= 6
+
+	v.Set(i+0, u0, v1)
+	v.Set(i+1, u1, v1)
+	v.Set(i+2, u1, v0)
+
+	v.Set(i+3, u1, v0)
+	v.Set(i+4, u0, v0)
+	v.Set(i+5, u0, v1)
+}
+
 func (v *VertexBuffer2f) Data() []float32 {
 	return v.data
 }
