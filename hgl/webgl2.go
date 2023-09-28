@@ -177,6 +177,7 @@ type WebGL struct {
 	TextureWrapS     TextureParameterName
 	TextureWrapT     TextureParameterName
 	Nearest          TextureParameter
+	Linear           TextureParameter
 	ClampToEdge      TextureParameter
 
 	CompileStatus                          ShaderParameter
@@ -260,6 +261,7 @@ func NewWebGL(canvas hjs.Canvas) (*WebGL, error) {
 		TextureWrapS:     TextureParameterName(gl.GetInt("TEXTURE_WRAP_S")),
 		TextureWrapT:     TextureParameterName(gl.GetInt("TEXTURE_WRAP_T")),
 		Nearest:          TextureParameter(gl.GetInt("NEAREST")),
+		Linear:           TextureParameter(gl.GetInt("LINEAR")),
 		ClampToEdge:      TextureParameter(gl.GetInt("CLAMP_TO_EDGE")),
 
 		CompileStatus:                          ShaderParameter(gl.GetInt("COMPILE_STATUS")),
