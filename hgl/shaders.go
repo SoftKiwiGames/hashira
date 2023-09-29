@@ -1,4 +1,4 @@
-package hsystem
+package hgl
 
 const VertexShaderSource = `
 attribute vec3 position;

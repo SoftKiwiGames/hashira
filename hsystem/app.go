@@ -26,17 +26,16 @@ type DefaultApp struct {
 
 	hasTileset bool
 
-	programQuad, program           hgl.Program
-	locModel                       hgl.Location
-	locView                        hgl.Location
-	locProjection                  hgl.Location
-	locQuad, locTileset            hgl.Location
-	vaoQuad, vao                   hgl.VertexArrayObject
-	vertexBufferQuad, vertexBuffer hgl.Buffer
+	program       hgl.Program
+	locModel      hgl.Location
+	locView       hgl.Location
+	locProjection hgl.Location
+	locTileset    hgl.Location
+	vao           hgl.VertexArrayObject
+	vertexBuffer  hgl.Buffer
 
-	uvBufferQuad, uvBuffer hgl.Buffer
-	fbo                    hgl.Framebuffer
-	quadTexture            hgl.Texture
+	uvBuffer hgl.Buffer
+	fbo      *hgl.FBO
 
 	world           *hashira.World
 	camera          *hashira.Camera2D
@@ -61,7 +60,7 @@ func (app *DefaultApp) Init() error {
 	app.camera = &hashira.Camera2D{Zoom: 1}
 
 	// shader tileset
-	program, err := glx.CreateDefaultProgram(VertexShaderSource, FragmentShaderSource)
+	program, err := glx.CreateDefaultProgram(hgl.VertexShaderSource, hgl.FragmentShaderSource)
 	if err != nil {
 		return err
 	}
@@ -82,36 +81,12 @@ func (app *DefaultApp) Init() error {
 	glx.AssignAttribToBuffer(program, "position", app.vertexBuffer, gl.Float, 3)
 	glx.AssignAttribToBuffer(program, "uv", app.uvBuffer, gl.Float, 2)
 
-	// shader fbo
-	programQuad, err := glx.CreateDefaultProgram(QuadVertexShaderSource, QuadFragmentShaderSource)
+	// fbo
+	fbo, err := glx.CreateFBORenderTarget(app.canvasWidth, app.canvasHeight)
 	if err != nil {
 		return err
 	}
-	app.programQuad = programQuad
-	gl.UseProgram(programQuad)
-	app.locQuad = gl.GetUniformLocation(programQuad, "quad")
-	// VAO fbo
-	app.vaoQuad = gl.CreateVertexArray()
-	app.vertexBufferQuad = gl.CreateBuffer()
-	app.uvBufferQuad = gl.CreateBuffer()
-	gl.BindVertexArray(app.vaoQuad)
-	glx.AssignAttribToBuffer(programQuad, "position", app.vertexBufferQuad, gl.Float, 3)
-	glx.AssignAttribToBuffer(programQuad, "uv", app.uvBufferQuad, gl.Float, 2)
-	gl.BindBuffer(gl.ArrayBuffer, app.vertexBufferQuad)
-	glx.BufferDataF(gl.ArrayBuffer, hgl.QuadVertices, gl.StaticDraw)
-	gl.BindBuffer(gl.ArrayBuffer, app.uvBufferQuad)
-	glx.BufferDataF(gl.ArrayBuffer, hgl.QuadUV, gl.StaticDraw)
-
-	// fbo
-	app.fbo = gl.CreateFramebuffer()
-	app.quadTexture = glx.CreateEmptyTextureRGBA(app.canvasWidth, app.canvasHeight)
-	gl.BindFramebuffer(gl.Framebuffer, app.fbo)
-	gl.FramebufferTexture2D(gl.Framebuffer, gl.ColorAttachment0, gl.Texture2D, app.quadTexture)
-
-	if status := gl.CheckFramebufferStatus(gl.Framebuffer); status != gl.FramebufferComplete {
-		return fmt.Errorf("framebuffer error: %v", glx.FramebufferStatusError(status))
-	}
-	gl.BindFramebuffer(gl.Framebuffer, gl.FramebufferNone)
+	app.fbo = fbo
 
 	return nil
 }
@@ -129,7 +104,7 @@ func (app *DefaultApp) Tick(dt float32) {
 	// }
 
 	// first pass - render to framebuffer
-	gl.BindFramebuffer(gl.Framebuffer, app.fbo)
+	gl.BindFramebuffer(gl.Framebuffer, app.fbo.Framebuffer)
 
 	gl.Enable(gl.DepthTest)
 	glx.EnableTransparency()
@@ -168,16 +143,7 @@ func (app *DefaultApp) Tick(dt float32) {
 	gl.BindFramebuffer(gl.Framebuffer, gl.FramebufferNone)
 
 	// second pass - render framebuffer to canvas
-	gl.Disable(gl.DepthTest)
-	gl.ActiveTexture(gl.Texture0)
-	glx.BindTexture2D(app.quadTexture)
-	gl.Viewport(0, 0, app.canvasWidth, app.canvasHeight)
-	glx.ClearColor(app.backgroundColor)
-	gl.Clear(gl.ColorBufferBit)
-
-	gl.UseProgram(app.programQuad)
-	gl.BindVertexArray(app.vaoQuad)
-	glx.DrawTriangles(0, 6)
+	app.fbo.Draw(glx)
 
 	if app.Commands.HasEvents() {
 		event := app.Commands.PeekEvent()
