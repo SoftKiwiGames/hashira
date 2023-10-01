@@ -21,7 +21,7 @@ type DefaultApp struct {
 	GL  *hgl.WebGL
 	GLX *hgl.WebGLExtended
 
-	screen        hgl.Screen
+	screen        *hgl.Screen
 	program       hgl.Program
 	locModel      hgl.Location
 	locView       hgl.Location
@@ -51,9 +51,10 @@ func (app *DefaultApp) Init() error {
 	app.world = hashira.New()
 	app.backgroundColor = hgl.Color{1, 1, 1, 1}
 
-	app.screen = hgl.Screen{
-		Width:  app.Canvas.GetClientWidthDPR(),
-		Height: app.Canvas.GetClientHeightDPR(),
+	app.screen = &hgl.Screen{
+		Width:            app.Canvas.GetClientWidthDPR(),
+		Height:           app.Canvas.GetClientHeightDPR(),
+		DevicePixelRatio: app.Canvas.DevicePixelRatio(),
 	}
 	app.camera = &hashira.Camera2D{Zoom: 1}
 
@@ -161,6 +162,14 @@ func (app *DefaultApp) handleEvent(event *Event) {
 		}
 		app.world.Resources.Texture = app.GLX.CreateDefaultTextureRGBA(img)
 		app.world.Resync()
+
+	// screen
+	case "screen.Resize":
+		width := event.Data.GetInt("width")
+		height := event.Data.GetInt("height")
+		app.screen.Resize(width, height)
+		app.Canvas.Resize()
+		app.fbo.Resize(app.GLX, *app.screen)
 
 	// world
 	case "world.SetBackground":

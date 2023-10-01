@@ -67,6 +67,18 @@ func (w *WebGLExtended) CreateFBORenderTarget(width int, height int) (*FBO, erro
 	}, nil
 }
 
+func (fbo *FBO) Resize(w *WebGLExtended, screen Screen) {
+	fbo.Width = screen.Width
+	fbo.Height = screen.Height
+
+	w.DeleteTexture(fbo.Texture)
+	fbo.Texture = w.CreateEmptyTextureRGBA(fbo.Width, fbo.Height)
+
+	w.BindFramebuffer(w.Framebuffer, fbo.Framebuffer)
+	w.FramebufferTexture2D(w.Framebuffer, w.ColorAttachment0, w.Texture2D, fbo.Texture)
+	w.BindFramebuffer(w.Framebuffer, w.FramebufferNone)
+}
+
 func (fbo *FBO) Draw(w *WebGLExtended) {
 	w.Disable(w.DepthTest)
 	w.ActiveTexture(w.Texture0)

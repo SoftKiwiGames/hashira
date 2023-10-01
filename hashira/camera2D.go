@@ -39,7 +39,7 @@ func (c *Camera2D) TranslateBy(dx, dy float32) {
 	c.ViewMatrix = hmath.TranslationMatrix(c.Position)
 }
 
-func (c *Camera2D) Projection(screen hgl.Screen) hmath.Matrix4 {
+func (c *Camera2D) Projection(screen *hgl.Screen) hmath.Matrix4 {
 	w := float32(screen.Width)
 	h := float32(screen.Height)
 	hh := h / 2

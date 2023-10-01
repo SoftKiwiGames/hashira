@@ -18,11 +18,12 @@
 </head>
 
 <body>
-  <script src="/wasm_exec.js"></script>
+  <script src="https://cdn.hashira.dev/js/wasm.js"></script>
   <script src="/hashira.js"></script>
+  <script src="/hashira-editor.js"></script>
 
   <div class="hashira-container">
-    <canvas id="hashira" style="width: 224px; height: 256px"></canvas>
+    <canvas id="hashira" style="width: 100vw; height: 100vh"></canvas>
   </div>
 
   <script>
@@ -32,6 +33,7 @@
       const editor = new HashiraEditor(hashira);
       editor.bindEvents(canvas);
       window.hashira = hashira;
+      hashira.bindEvents(canvas);
 
       hashira.bindCanvasByID("hashira");
       hashira.loadTileset("https://cdn.hashira.dev/tilesets/castle-and-grassland.png")

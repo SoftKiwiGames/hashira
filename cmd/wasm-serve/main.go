@@ -34,6 +34,12 @@ func main() {
 
 		http.ServeFile(w, r, "ui/hashira.js")
 	})
+	http.HandleFunc("/hashira-editor.js", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Content-Type", "application/javascript")
+
+		http.ServeFile(w, r, "ui/hashira-editor.js")
+	})
 	http.HandleFunc("/hashira.wasm", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 		w.Header().Set("Pragma", "no-cache")

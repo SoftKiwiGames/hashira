@@ -334,6 +334,10 @@ func (w *WebGL) CreateTexture() Texture {
 	return Texture(&tex)
 }
 
+func (w *WebGL) DeleteTexture(texture Texture) {
+	w.gl.Call("deleteTexture", js.Value(*texture))
+}
+
 func (w *WebGL) BindVertexArray(vao VertexArrayObject) {
 	w.gl.Call("bindVertexArray", js.Value(vao))
 }
