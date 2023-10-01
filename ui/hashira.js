@@ -24,8 +24,8 @@ const Hashira = {
 };
 
 class HashiraClient {
-    constructor(canvas) {
-        // this.canvas = canvas;
+    constructor(instance) {
+        this.instance = instance;
     }
 
     // bindEvents = () => {
@@ -36,8 +36,8 @@ class HashiraClient {
     //     }, false);
     // }
 
-    bindCanvasByID = (canvasID, resize) => {
-        window.HashiraInitRenderLoop(canvasID, { resize: resize });
+    bindCanvasByID = (canvasID) => {
+        window.HashiraInitRenderLoop(canvasID);
     }
 
     sendEvent = (event, data) => {

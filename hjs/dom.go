@@ -14,6 +14,10 @@ func (n Node) GetAttribute(name string) js.Value {
 	return js.Value(n).Call("getAttribute", name)
 }
 
+func (n Node) SetAttributeInt(name string, value int) {
+	js.Value(n).Call("setAttribute", name, value)
+}
+
 func (n Node) GetInt(name string) int {
 	return js.Value(n).Get(name).Int()
 }

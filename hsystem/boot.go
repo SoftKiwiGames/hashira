@@ -20,10 +20,7 @@ func InitRenderLoop(this js.Value, args []js.Value) any {
 	if canvas.IsNull() {
 		return fmt.Errorf("CanvasID: `%s` not found", canvasID)
 	}
-	resize := hjs.Object(args[1]).GetBool("resize")
-	if resize {
-		canvas.Resize()
-	}
+	canvas.Resize()
 
 	commands := &Commands{
 		Events: make([]*Event, 0, 10),

@@ -1,6 +1,7 @@
 package hashira
 
 import (
+	"github.com/qbart/hashira/hgl"
 	"github.com/qbart/hashira/hmath"
 )
 
@@ -38,9 +39,9 @@ func (c *Camera2D) TranslateBy(dx, dy float32) {
 	c.ViewMatrix = hmath.TranslationMatrix(c.Position)
 }
 
-func (c *Camera2D) Projection(canvasWidth int, canvasHeight int) hmath.Matrix4 {
-	w := float32(canvasWidth)
-	h := float32(canvasHeight)
+func (c *Camera2D) Projection(screen hgl.Screen) hmath.Matrix4 {
+	w := float32(screen.Width)
+	h := float32(screen.Height)
 	hh := h / 2
 	wh := w / 2
 	scale := 1 / c.Zoom

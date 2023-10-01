@@ -5,28 +5,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
   <title>Hashira</title>
+
+  <link rel="stylesheet" href="https://cdn.hashira.dev/css/hashira.css" />
   <style>
     html,
     body {
       height: 100%;
       margin: 0;
       padding: 0;
-    }
-
-    body {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background-color: #0099DB;
-    }
-
-    canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100vw;
-      height: 100vh;
-      display: block;
     }
   </style>
 </head>
@@ -35,9 +21,65 @@
   <script src="/wasm_exec.js"></script>
   <script src="/hashira.js"></script>
 
-  <canvas id="hashira"></canvas>
+  <div class="hashira-container">
+    <canvas id="hashira" style="width: 224px; height: 256px"></canvas>
+  </div>
 
   <script>
+    const canvas = document.getElementById("hashira");
+
+    Hashira.Fetch("/hashira.wasm").then((hashira) => {
+      const editor = new HashiraEditor(hashira);
+      editor.bindEvents(canvas);
+      window.hashira = hashira;
+
+      hashira.bindCanvasByID("hashira");
+      hashira.loadTileset("https://cdn.hashira.dev/tilesets/castle-and-grassland.png")
+      hashira.setBackgroundColor("#4867b4");
+      hashira.addMap("island", 7, 8, 16, 16);
+      hashira.setCameraToMapCenter("island");
+      hashira.setCameraZoom(2);
+
+      hashira.addLayer("island", "grass", 0.0);
+      hashira.addLayerData("island", "grass", [
+        [6, 6, 6, 6, 6, 6, 6],
+        [6, 6, 6, 6, 6, 6, 6],
+        [6, 6, 6, 6, 6, 6, 6],
+        [128, 0, 1, 1, 1, 2, 131],
+        [98, 16, 17, 17, 17, 18, 96],
+        [98, 16, 17, 17, 17, 18, 96],
+        [98, 16, 17, 17, 17, 18, 96],
+        [144, 145, 81, 81, 81, 146, 147],
+      ]);
+
+      hashira.addLayer("island", "buildings", 1.0);
+      hashira.addLayerData("island", "buildings", [
+        [6, 6, 165, 166, 167, 6, 6],
+        [6, 6, 181, 182, 183, 6, 6],
+        [6, 6, 197, 198, 199, 6, 6],
+        [6, 6, 213, 214, 215, 6, 6],
+        [6, 6, 213, 214, 215, 6, 6],
+        [6, 6, 213, 214, 215, 6, 6],
+        [6, 6, 229, 230, 231, 6, 6],
+        [6, 6, 6, 6, 6, 6, 6],
+      ]);
+
+      hashira.addLayer("island", "details", 2.0);
+      hashira.addLayerData("island", "details", [
+        [6, 6, 6, 6, 6, 6, 6],
+        [6, 6, 6, 6, 6, 6, 6],
+        [6, 6, 6, 6, 6, 6, 6],
+        [6, 6, 6, 6, 6, 6, 6],
+        [6, 6, 6, 245, 55, 6, 6],
+        [6, 6, 55, 6, 55, 6, 6],
+        [6, 6, 6, 246, 55, 6, 6],
+        [6, 6, 6, 6, 6, 6, 6],
+      ]);
+
+    });
+  </script>
+
+  <!-- <script>
     const canvas = document.getElementById("hashira");
 
     Hashira.Fetch("/hashira.wasm").then((hashira) => {
@@ -108,23 +150,23 @@
     });
 
 
-    //   "animations": [
-    //     {
-    //       "frames": [65, 68],
-    //       "delay": 1
-    //     },
-    //     {
-    //       "frames": [64, 67],
-    //       "delay": 1
-    //     },
-    //     {
-    //       "frames": [66, 69],
-    //       "delay": 1
-    //     }
-    //   ]
-    // },
+  // "animations": [
+  // {
+  // "frames": [65, 68],
+  // "delay": 1
+  // },
+  // {
+  // "frames": [64, 67],
+  // "delay": 1
+  // },
+  // {
+  // "frames": [66, 69],
+  // "delay": 1
+  // }
+  // ]
+  // },
   </script>
-
+ -->
 </body>
 
 </html>

@@ -18,14 +18,10 @@ type DefaultApp struct {
 	Canvas   hjs.Canvas
 	Commands *Commands
 
-	canvasWidth  int
-	canvasHeight int
-
 	GL  *hgl.WebGL
 	GLX *hgl.WebGLExtended
 
-	hasTileset bool
-
+	screen        hgl.Screen
 	program       hgl.Program
 	locModel      hgl.Location
 	locView       hgl.Location
@@ -40,7 +36,6 @@ type DefaultApp struct {
 	world           *hashira.World
 	camera          *hashira.Camera2D
 	matModel        hmath.Matrix4
-	matProjection   hmath.Matrix4
 	backgroundColor hgl.Color
 }
 
@@ -52,11 +47,14 @@ func (app *DefaultApp) Init() error {
 	glx := gl.Extended()
 	app.GL = gl
 	app.GLX = glx
-	app.canvasWidth, app.canvasHeight = app.Canvas.GetClientWidth(), app.Canvas.GetClientHeight()
 
 	app.world = hashira.New()
-	app.backgroundColor = hgl.Color{0, 0, 0, 1}
+	app.backgroundColor = hgl.Color{1, 1, 1, 1}
 
+	app.screen = hgl.Screen{
+		Width:  app.Canvas.GetClientWidthDPR(),
+		Height: app.Canvas.GetClientHeightDPR(),
+	}
 	app.camera = &hashira.Camera2D{Zoom: 1}
 
 	// shader tileset
@@ -66,7 +64,6 @@ func (app *DefaultApp) Init() error {
 	}
 	app.program = program
 	gl.UseProgram(program)
-	app.matProjection = hmath.IdentityMatrix()
 	app.matModel = hmath.IdentityMatrix()
 	app.locModel = gl.GetUniformLocation(program, "model")
 	app.locView = gl.GetUniformLocation(program, "view")
@@ -82,7 +79,7 @@ func (app *DefaultApp) Init() error {
 	glx.AssignAttribToBuffer(program, "uv", app.uvBuffer, gl.Float, 2)
 
 	// fbo
-	fbo, err := glx.CreateFBORenderTarget(app.canvasWidth, app.canvasHeight)
+	fbo, err := glx.CreateFBORenderTarget(app.screen.Width, app.screen.Height)
 	if err != nil {
 		return err
 	}
@@ -109,14 +106,15 @@ func (app *DefaultApp) Tick(dt float32) {
 	gl.Enable(gl.DepthTest)
 	glx.EnableTransparency()
 
-	gl.Viewport(0, 0, app.canvasWidth, app.canvasHeight)
+	camProjection := app.camera.Projection(app.screen)
+	gl.Viewport(0, 0, app.screen.Width, app.screen.Height)
 	glx.ClearColor(app.backgroundColor)
 	gl.Clear(gl.ColorBufferBit | gl.DepthBufferBit)
 
 	gl.UseProgram(app.program)
 	gl.UniformMatrix4(app.locModel, app.matModel)
 	gl.UniformMatrix4(app.locView, app.camera.ViewMatrix)
-	gl.UniformMatrix4(app.locProjection, app.matProjection)
+	gl.UniformMatrix4(app.locProjection, camProjection)
 	gl.Uniform1Int(app.locTileset, 1)
 
 	if app.world.Resources.HasTileset() {
@@ -176,7 +174,6 @@ func (app *DefaultApp) handleEvent(event *Event) {
 		tileWidth := event.Data.GetInt("tileWidth")
 		tileHeight := event.Data.GetInt("tileHeight")
 		app.world.AddMap(name, width, height, tileWidth, tileHeight)
-		app.matProjection = app.camera.Projection(app.canvasWidth, app.canvasHeight)
 
 	case "world.AddLayer":
 		mapName := event.Data.GetString("map")
@@ -211,12 +208,10 @@ func (app *DefaultApp) handleEvent(event *Event) {
 	case "camera.Zoom":
 		zoom := event.Data.GetFloat32("zoom")
 		app.camera.SetZoom(zoom)
-		app.matProjection = app.camera.Projection(app.canvasWidth, app.canvasHeight)
 
 	case "camera.ZoomBy":
 		zoom := event.Data.GetFloat32("delta")
 		app.camera.ZoomBy(zoom)
-		app.matProjection = app.camera.Projection(app.canvasWidth, app.canvasHeight)
 
 	case "camera.TranslateToMapCenter":
 		name := event.Data.GetString("map")

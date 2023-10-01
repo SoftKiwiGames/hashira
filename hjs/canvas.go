@@ -25,24 +25,32 @@ func (c Canvas) DevicePixelRatio() float32 {
 }
 
 func (c Canvas) GetClientWidth() int {
+	return Node(c).GetInt("clientWidth")
+}
+
+func (c Canvas) GetClientHeight() int {
+	return Node(c).GetInt("clientHeight")
+}
+
+func (c Canvas) GetClientWidthDPR() int {
 	return int(
 		math.Round(
-			float64(Node(c).GetInt("clientWidth")) * float64(c.DevicePixelRatio()),
+			float64(c.GetClientWidth()) * float64(c.DevicePixelRatio()),
 		),
 	)
 }
 
-func (c Canvas) GetClientHeight() int {
+func (c Canvas) GetClientHeightDPR() int {
 	return int(
 		math.Round(
-			float64(Node(c).GetInt("clientHeight")) * float64(c.DevicePixelRatio()),
+			float64(c.GetClientHeight()) * float64(c.DevicePixelRatio()),
 		),
 	)
 }
 
 func (c Canvas) Resize() {
-	width := c.GetClientWidth()
-	height := c.GetClientHeight()
+	width := c.GetClientWidthDPR()
+	height := c.GetClientHeightDPR()
 	Node(c).SetInt("width", width)
 	Node(c).SetInt("height", height)
 }
