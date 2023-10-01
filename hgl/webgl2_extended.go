@@ -39,9 +39,9 @@ func (w *WebGLExtended) CreateFBORenderTarget(width int, height int) (*FBO, erro
 	w.AssignAttribToBuffer(program, "position", vertexBuffer, w.Float, 3)
 	w.AssignAttribToBuffer(program, "uv", uvBuffer, w.Float, 2)
 	w.BindBuffer(w.ArrayBuffer, vertexBuffer)
-	w.BufferDataF(w.ArrayBuffer, QuadVertices, w.StaticDraw)
+	w.BufferDataF(w.ArrayBuffer, NewFloat32ArrayBuffer(QuadVertices), w.StaticDraw)
 	w.BindBuffer(w.ArrayBuffer, uvBuffer)
-	w.BufferDataF(w.ArrayBuffer, QuadUV, w.StaticDraw)
+	w.BufferDataF(w.ArrayBuffer, NewFloat32ArrayBuffer(QuadUV), w.StaticDraw)
 
 	// fbo
 	fb := w.CreateFramebuffer()
@@ -162,12 +162,12 @@ func (w *WebGLExtended) EnableTransparency() {
 	w.BlendFunc(w.SrcAlpha, w.OneMinusSrcAlpha)
 }
 
-func (w *WebGLExtended) BufferDataF(target BufferType, data []float32, usage BufferUsage) {
-	w.BufferData(target, Float32ArrayBuffer(data), usage)
+func (w *WebGLExtended) BufferDataF(target BufferType, data *Float32ArrayBuffer, usage BufferUsage) {
+	w.BufferData(target, data, usage)
 }
 
-func (w *WebGLExtended) BufferDataU(target BufferType, data []uint32, usage BufferUsage) {
-	w.BufferData(target, UInt32ArrayBuffer(data), usage)
+func (w *WebGLExtended) BufferDataU(target BufferType, data *UInt32ArrayBuffer, usage BufferUsage) {
+	w.BufferData(target, data, usage)
 }
 
 func (w *WebGLExtended) DrawTriangles(offset int, count int) {

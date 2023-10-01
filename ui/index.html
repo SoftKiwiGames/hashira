@@ -23,7 +23,7 @@
   <script src="/hashira-editor.js"></script>
 
   <div class="hashira-container">
-    <canvas id="hashira" style="width: 100vw; height: 100vh"></canvas>
+    <canvas id="hashira" style="width: 224px; height: 256px;"></canvas>
   </div>
 
   <script>
@@ -32,7 +32,6 @@
     Hashira.Fetch("/hashira.wasm").then((hashira) => {
       const editor = new HashiraEditor(hashira);
       editor.bindEvents(canvas);
-      window.hashira = hashira;
       hashira.bindEvents(canvas);
 
       hashira.bindCanvasByID("hashira");

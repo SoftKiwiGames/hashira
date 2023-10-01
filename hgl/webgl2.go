@@ -9,9 +9,7 @@ package hgl
 
 import (
 	"fmt"
-	"reflect"
 	"syscall/js"
-	"unsafe"
 
 	"github.com/qbart/hashira/hjs"
 	"github.com/qbart/hashira/hmath"
@@ -39,9 +37,6 @@ type TextureParameterName int
 type TextureParameter int
 type TextureUnit int
 type Texture *js.Value
-type BufferData interface {
-	Bytes() []byte
-}
 type Buffer js.Value
 type Framebuffer js.Value
 type FramebufferTarget int
@@ -63,56 +58,6 @@ type Shader js.Value
 type ShaderParameter int
 type ProgramParameter int
 type Parameter int
-
-type Float32ArrayBuffer []float32
-type ByteArrayBuffer []byte
-type UInt32ArrayBuffer []uint32
-
-func (f Float32ArrayBuffer) Bytes() []byte {
-	n := 4 * len(f)
-	ptr := unsafe.Pointer(&(f[0]))
-	pi := (*[1]byte)(ptr)
-	buf := (*pi)[:]
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	sh.Len = n
-	sh.Cap = n
-	return buf
-
-	// buffer := new(bytes.Buffer)
-	// for _, x := range f {
-	// 	err := binary.Write(buffer, binary.LittleEndian, x)
-	// 	if err != nil {
-	// 		fmt.Println("Error:", err)
-	// 		return nil
-	// 	}
-	// }
-	// return buffer.Bytes()
-}
-
-func (b ByteArrayBuffer) Bytes() []byte {
-	return b
-}
-
-func (u UInt32ArrayBuffer) Bytes() []byte {
-	n := 4 * len(u)
-	ptr := unsafe.Pointer(&(u[0]))
-	pi := (*[1]byte)(ptr)
-	buf := (*pi)[:]
-	sh := (*reflect.SliceHeader)(unsafe.Pointer(&buf))
-	sh.Len = n
-	sh.Cap = n
-	return buf
-
-	// buffer := new(bytes.Buffer)
-	// for _, x := range f {
-	// 	err := binary.Write(buffer, binary.LittleEndian, x)
-	// 	if err != nil {
-	// 		fmt.Println("Error:", err)
-	// 		return nil
-	// 	}
-	// }
-	// return buffer.Bytes()
-}
 
 type WebGL struct {
 	gl     hjs.WebGL2RenderingContext
