@@ -23,19 +23,25 @@ func main() {
 		http.ServeFile(w, r, "tilesets/parking-lot.png")
 	})
 	http.HandleFunc("/wasm_exec.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
 		w.Header().Set("Content-Type", "application/javascript")
 
 		http.ServeFile(w, r, "ui/wasm_exec.js")
 	})
 	http.HandleFunc("/hashira.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
 		w.Header().Set("Content-Type", "application/javascript")
 
 		http.ServeFile(w, r, "ui/hashira.js")
 	})
 	http.HandleFunc("/hashira-editor.js", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Cache-Control", "no-cache")
+		w.Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+		w.Header().Set("Pragma", "no-cache")
+		w.Header().Set("Expires", "0")
 		w.Header().Set("Content-Type", "application/javascript")
 
 		http.ServeFile(w, r, "ui/hashira-editor.js")
