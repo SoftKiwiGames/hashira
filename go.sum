@@ -1,3 +1,5 @@
+github.com/SoftKiwiGames/risky v1.0.0 h1:cOYM+37bgJfjBqwPy7yNUhOcJC+ep2uTzBe1Fn35hvk=
+github.com/SoftKiwiGames/risky v1.0.0/go.mod h1:fDKzrV+YQf/yUUl1VF8SamdAWppxf2fuHZDbOi/nppE=
 github.com/go-gl/mathgl v1.0.0 h1:t9DznWJlXxxjeeKLIdovCOVJQk/GzDEL7h/h+Ro2B68=
 github.com/go-gl/mathgl v1.0.0/go.mod h1:yhpkQzEiH9yPyxDUGzkmgScbaBVlhC06qodikEM0ZwQ=
 golang.org/x/exp v0.0.0-20230905200255-921286631fa9 h1:GoHiUyI/Tp2nVkLI2mCxVkOjsbSXD66ic0XW0js0R9g=

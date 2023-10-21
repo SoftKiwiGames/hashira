@@ -3,6 +3,7 @@ package hsystem
 import (
 	"fmt"
 
+	"github.com/SoftKiwiGames/risky/risky"
 	"github.com/qbart/hashira/hashira"
 	"github.com/qbart/hashira/hgl"
 	"github.com/qbart/hashira/hjs"
@@ -154,7 +155,7 @@ func (app *DefaultApp) Tick(dt float32) {
 func (app *DefaultApp) handleEvent(event *Event) {
 	switch event.Type {
 	case "TilesetLoaded":
-		data := JsonData[hevents.TilesetLoaded](event.JsonData)
+		data := risky.JSON[hevents.TilesetLoaded](event.Payload)
 		img, err := app.world.Resources.LoadTileset(data.Bytes)
 		if err != nil {
 			fmt.Println("Error loading tileset: ", err)
@@ -164,49 +165,49 @@ func (app *DefaultApp) handleEvent(event *Event) {
 		app.world.Resync()
 
 	case "ScreenResized":
-		data := JsonData[hevents.ScreenResized](event.JsonData)
+		data := risky.JSON[hevents.ScreenResized](event.Payload)
 		app.screen.Resize(data.Width, data.Height)
 		app.Canvas.Resize()
 		app.fbo.Resize(app.GLX, *app.screen)
 
 	case "BackgroundColorSet":
-		data := JsonData[hevents.BackgroundColorSet](event.JsonData)
+		data := risky.JSON[hevents.BackgroundColorSet](event.Payload)
 		app.backgroundColor = hgl.ParseHEXColor(data.Color)
 
 	case "MapAdded":
-		data := JsonData[hevents.MapAdded](event.JsonData)
+		data := risky.JSON[hevents.MapAdded](event.Payload)
 		app.world.AddMap(data.Name, data.Width, data.Height, data.TileWidth, data.TileHeight)
 
 	case "LayerAdded":
-		data := JsonData[hevents.LayerAdded](event.JsonData)
+		data := risky.JSON[hevents.LayerAdded](event.Payload)
 		app.world.AddLayer(data.Map, data.Name, data.Z)
 
 	case "LayerDataAdded":
-		data := JsonData[hevents.LayerDataAdded](event.JsonData)
+		data := risky.JSON[hevents.LayerDataAdded](event.Payload)
 		app.world.AddLayerData(data.Map, data.Layer, data.Data)
 
 	case "TileAssigned":
-		data := JsonData[hevents.TileAssigned](event.JsonData)
+		data := risky.JSON[hevents.TileAssigned](event.Payload)
 		app.world.SetTile(data.Map, data.Layer, data.X, data.Y, data.Tile)
 
 	case "CameraTranslated":
-		data := JsonData[hevents.CameraTranslated](event.JsonData)
+		data := risky.JSON[hevents.CameraTranslated](event.Payload)
 		app.camera.Translate(data.X, data.Y)
 
 	case "CameraTranslatedBy":
-		data := JsonData[hevents.CameraTranslatedBy](event.JsonData)
+		data := risky.JSON[hevents.CameraTranslatedBy](event.Payload)
 		app.camera.TranslateBy(data.X, data.Y)
 
 	case "CameraZoomed":
-		data := JsonData[hevents.CameraZoomed](event.JsonData)
+		data := risky.JSON[hevents.CameraZoomed](event.Payload)
 		app.camera.SetZoom(data.Zoom)
 
 	case "CameraZoomedBy":
-		data := JsonData[hevents.CameraZoomedBy](event.JsonData)
+		data := risky.JSON[hevents.CameraZoomedBy](event.Payload)
 		app.camera.ZoomBy(data.Delta)
 
 	case "CameraTranslatedToMapCenter":
-		data := JsonData[hevents.CameraTranslatedToMapCenter](event.JsonData)
+		data := risky.JSON[hevents.CameraTranslatedToMapCenter](event.Payload)
 		m := app.world.Maps.Get(data.Map)
 		cx, cy := m.Center()
 		cx *= float32(m.TileWidth)
