@@ -1,15 +1,14 @@
 package hsystem
 
 import (
+	"encoding/json"
 	"sync"
 	"syscall/js"
-
-	"github.com/qbart/hashira/hjs"
 )
 
 type Event struct {
-	Type string
-	Data hjs.Object
+	Type     string
+	JsonData string
 }
 
 type Commands struct {
@@ -17,11 +16,19 @@ type Commands struct {
 	Events []*Event
 }
 
+func JsonData[T any](data string) *T {
+	var parsed T
+	_ = json.Unmarshal([]byte(data), &parsed)
+	return &parsed
+}
+
 func (c *Commands) AddEvent(this js.Value, args []js.Value) any {
 	c.Lock()
+	id := args[0].String()
+	data := args[1].String()
 	c.Events = append(c.Events, &Event{
-		Type: args[0].String(),
-		Data: hjs.Object(args[1]),
+		Type:     id,
+		JsonData: data,
 	})
 	defer c.Unlock()
 

@@ -7,6 +7,7 @@ import (
 	"github.com/qbart/hashira/hgl"
 	"github.com/qbart/hashira/hjs"
 	"github.com/qbart/hashira/hmath"
+	"github.com/qbart/hashira/hsystem/hevents"
 )
 
 type App interface {
@@ -152,10 +153,9 @@ func (app *DefaultApp) Tick(dt float32) {
 
 func (app *DefaultApp) handleEvent(event *Event) {
 	switch event.Type {
-	// resources
-	case "resources.LoadTileset":
-		data := event.Data.GetBytes("data")
-		img, err := app.world.Resources.LoadTileset(data)
+	case "TilesetLoaded":
+		data := JsonData[hevents.TilesetLoaded](event.JsonData)
+		img, err := app.world.Resources.LoadTileset(data.Bytes)
 		if err != nil {
 			fmt.Println("Error loading tileset: ", err)
 			return
@@ -163,68 +163,51 @@ func (app *DefaultApp) handleEvent(event *Event) {
 		app.world.Resources.Texture = app.GLX.CreateDefaultTextureRGBA(img)
 		app.world.Resync()
 
-	// screen
-	case "screen.Resize":
-		width := event.Data.GetInt("width")
-		height := event.Data.GetInt("height")
-		app.screen.Resize(width, height)
+	case "ScreenResized":
+		data := JsonData[hevents.ScreenResized](event.JsonData)
+		app.screen.Resize(data.Width, data.Height)
 		app.Canvas.Resize()
 		app.fbo.Resize(app.GLX, *app.screen)
 
-	// world
-	case "world.SetBackground":
-		color := event.Data.GetString("color")
-		app.backgroundColor = hgl.ParseHEXColor(color)
+	case "BackgroundColorSet":
+		data := JsonData[hevents.BackgroundColorSet](event.JsonData)
+		app.backgroundColor = hgl.ParseHEXColor(data.Color)
 
-	case "world.AddMap":
-		name := event.Data.GetString("name")
-		width := event.Data.GetInt("width")
-		height := event.Data.GetInt("height")
-		tileWidth := event.Data.GetInt("tileWidth")
-		tileHeight := event.Data.GetInt("tileHeight")
-		app.world.AddMap(name, width, height, tileWidth, tileHeight)
+	case "MapAdded":
+		data := JsonData[hevents.MapAdded](event.JsonData)
+		app.world.AddMap(data.Name, data.Width, data.Height, data.TileWidth, data.TileHeight)
 
-	case "world.AddLayer":
-		mapName := event.Data.GetString("map")
-		name := event.Data.GetString("name")
-		z := event.Data.GetFloat32("z")
-		app.world.AddLayer(mapName, name, z)
+	case "LayerAdded":
+		data := JsonData[hevents.LayerAdded](event.JsonData)
+		app.world.AddLayer(data.Map, data.Name, data.Z)
 
-	case "world.AddLayerData":
-		mapName := event.Data.GetString("map")
-		layerName := event.Data.GetString("layer")
-		data := event.Data.GetIntArrayOfIntArray("data")
-		app.world.AddLayerData(mapName, layerName, data)
+	case "LayerDataAdded":
+		data := JsonData[hevents.LayerDataAdded](event.JsonData)
+		app.world.AddLayerData(data.Map, data.Layer, data.Data)
 
-	case "world.SetTile":
-		mapName := event.Data.GetString("map")
-		layerName := event.Data.GetString("layer")
-		x := event.Data.GetInt("x")
-		y := event.Data.GetInt("y")
-		tile := event.Data.GetInt("tile")
-		app.world.SetTile(mapName, layerName, x, y, tile)
+	case "TileAssigned":
+		data := JsonData[hevents.TileAssigned](event.JsonData)
+		app.world.SetTile(data.Map, data.Layer, data.X, data.Y, data.Tile)
 
-	case "camera.Translate":
-		x := event.Data.GetFloat32("x")
-		y := event.Data.GetFloat32("y")
-		app.camera.Translate(x, y)
+	case "CameraTranslated":
+		data := JsonData[hevents.CameraTranslated](event.JsonData)
+		app.camera.Translate(data.X, data.Y)
 
-	case "camera.TranslateBy":
-		dx := event.Data.GetFloat32("x")
-		dy := event.Data.GetFloat32("y")
-		app.camera.TranslateBy(dx, dy)
+	case "CameraTranslatedBy":
+		data := JsonData[hevents.CameraTranslatedBy](event.JsonData)
+		app.camera.TranslateBy(data.X, data.Y)
 
-	case "camera.Zoom":
-		zoom := event.Data.GetFloat32("zoom")
-		app.camera.SetZoom(zoom)
+	case "CameraZoomed":
+		data := JsonData[hevents.CameraZoomed](event.JsonData)
+		app.camera.SetZoom(data.Zoom)
 
-	case "camera.ZoomBy":
-		zoom := event.Data.GetFloat32("delta")
-		app.camera.ZoomBy(zoom)
+	case "CameraZoomedBy":
+		data := JsonData[hevents.CameraZoomedBy](event.JsonData)
+		app.camera.ZoomBy(data.Delta)
 
-	case "camera.TranslateToMapCenter":
-		name := event.Data.GetString("map")
-		m := app.world.Maps.Get(name)
+	case "CameraTranslatedToMapCenter":
+		data := JsonData[hevents.CameraTranslatedToMapCenter](event.JsonData)
+		m := app.world.Maps.Get(data.Map)
 		cx, cy := m.Center()
 		cx *= float32(m.TileWidth)
 		cy *= float32(m.TileHeight)

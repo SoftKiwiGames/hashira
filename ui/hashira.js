@@ -33,7 +33,7 @@ class HashiraClient {
         window.addEventListener('resize', (e) => {
             const width = this.canvas.clientWidth;
             const height = this.canvas.clientHeight;
-            this.sendEvent("screen.Resize", { width: width, height: height });
+            this.sendEvent("ScreenResized", { width: width, height: height });
         }, false);
     }
 
@@ -42,54 +42,54 @@ class HashiraClient {
     }
 
     sendEvent = (event, data) => {
-        window.HashiraSendEvent(event, data);
+        window.HashiraSendEvent(event, JSON.stringify(data));
     }
 
     loadTileset = (url) => {
         return fetch(url).then((response) => {
             return response.arrayBuffer();
         }).then((buffer) => {
-            this.sendEvent("resources.LoadTileset", { data: new Uint8Array(buffer) });
+            this.sendEvent("TilesetLoaded", { bytes: Array.from(new Uint8Array(buffer)) });
         });
     }
 
     setBackgroundColor = (hex) => {
-        this.sendEvent("world.SetBackground", { color: hex });
+        this.sendEvent("BackgroundColorSet", { color: hex });
     }
 
     addMap = (name, width, height, tileWidth, tileHeight) => {
-        this.sendEvent("world.AddMap", { name: name, width: width, height: height, tileWidth: tileWidth, tileHeight: tileHeight });
+        this.sendEvent("MapAdded", { name: name, width: width, height: height, tile_width: tileWidth, tile_height: tileHeight });
     }
 
     addLayer = (mapName, layerName, z) => {
-        this.sendEvent("world.AddLayer", { map: mapName, name: layerName, z: z });
+        this.sendEvent("LayerAdded", { map: mapName, name: layerName, z: z });
     }
 
     addLayerData = (mapName, layerName, data) => {
-        this.sendEvent("world.AddLayerData", { map: mapName, layer: layerName, data: data });
+        this.sendEvent("LayerDataAdded", { map: mapName, layer: layerName, data: data });
     }
 
     setTile = (mapName, layerName, x, y, tileID) => {
-        this.sendEvent("world.SetTile", { map: mapName, layer: layerName, x: x, y: y, tile: tileID });
+        this.sendEvent("TileAssigned", { map: mapName, layer: layerName, x: x, y: y, tile: tileID });
     }
 
     setCameraZoom = (zoom) => {
-        this.sendEvent("camera.Zoom", { zoom: zoom });
+        this.sendEvent("CameraZoomed", { zoom: zoom });
     }
 
     setCameraZoomBy = (by) => {
-        this.sendEvent("camera.ZoomBy", { delta: by });
+        this.sendEvent("CammeraZoomedBy", { delta: by });
     }
 
     setCameraTranslation = (x, y) => {
-        this.sendEvent("camera.Translate", { x: x, y: y });
+        this.sendEvent("CameraTranslated", { x: x, y: y });
     }
 
     setCameraTranslationBy = (x, y) => {
-        this.sendEvent("camera.TranslateBy", { x: x, y: y });
+        this.sendEvent("CameraTranslatedBy", { x: x, y: y });
     }
 
     setCameraToMapCenter = (mapName) => {
-        this.sendEvent("camera.TranslateToMapCenter", { map: mapName });
+        this.sendEvent("CameraTranslatedToMapCenter", { map: mapName });
     }
 }

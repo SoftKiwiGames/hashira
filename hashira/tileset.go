@@ -10,7 +10,6 @@ func (t *Tileset) TextureUV(tile int, tileWidth int, tileHeight int) (float32, f
 	if t == nil {
 		return 0, 0, 1, 1
 	}
-
 	tilesPerRow := t.Width / tileWidth
 	rowX := tile % tilesPerRow
 	rowY := tile / tilesPerRow

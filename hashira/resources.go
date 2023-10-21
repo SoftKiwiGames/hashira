@@ -1,6 +1,8 @@
 package hashira
 
-import "github.com/qbart/hashira/hgl"
+import (
+	"github.com/qbart/hashira/hgl"
+)
 
 type Resources struct {
 	Tileset *Tileset
